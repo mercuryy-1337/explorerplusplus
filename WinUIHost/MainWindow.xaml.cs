@@ -195,9 +195,35 @@ namespace ExplorerPlusPlus.WinUIHost
 			button.Background = ResolveThemeBrush(resourceKey);
 		}
 
+		private static void UpdateNavToolbarButtonVisual(Button button)
+		{
+			button.Foreground = ResolveThemeBrush(button.IsEnabled ? "ShellTextBrush" : "ShellSecondaryTextBrush");
+
+			if (!button.IsEnabled)
+			{
+				ResetNavToolbarButtonBrush(button);
+			}
+		}
+
 		private static void ResetNavToolbarButtonBrush(Button button)
 		{
 			button.Background = s_transparentBrush;
+		}
+
+		private void NavToolbarButton_Loaded(object sender, RoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				UpdateNavToolbarButtonVisual(button);
+			}
+		}
+
+		private void NavToolbarButton_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				UpdateNavToolbarButtonVisual(button);
+			}
 		}
 
 		private void NavToolbarButton_PointerEntered(object sender, PointerRoutedEventArgs e)

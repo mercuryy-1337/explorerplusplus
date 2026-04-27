@@ -11,7 +11,8 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.RowSpan="2" Background="{ThemeResource ShellTopBarBrush}" />
+        <Border Grid.Row="0" Background="{ThemeResource ShellTopBarBrush}" />
+        <Border Grid.Row="1" Background="{ThemeResource ShellChromeBrush}" />
         <Border Grid.Row="2" Background="{ThemeResource ShellChromeBrush}" />
 
         <Grid x:Name="AppTitleBar" Grid.Row="0" Height="44">
@@ -32,7 +33,7 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border MinWidth="150" Height="36" Margin="0,0,8,0" Padding="14,0,14,0" VerticalAlignment="Bottom" Background="{ThemeResource ShellSurfaceBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1,1,1,0" CornerRadius="10,10,0,0">
+                        <Border MinWidth="150" Height="36" Margin="0,0,8,0" Padding="14,0,14,0" VerticalAlignment="Bottom" Background="{ThemeResource ShellChromeBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1,1,1,0" CornerRadius="10,10,0,0">
                             <Grid ColumnSpacing="8" VerticalAlignment="Center">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
@@ -56,17 +57,28 @@
 
             <Grid Grid.Row="0" Margin="16,10,16,10" ColumnSpacing="8">
                 <Grid.Resources>
+                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
                     <Style x:Key="NavToolbarButtonStyle" TargetType="Button">
-                        <Setter Property="Width" Value="30" />
-                        <Setter Property="Height" Value="30" />
+                        <Setter Property="Width" Value="28" />
+                        <Setter Property="Height" Value="28" />
                         <Setter Property="Padding" Value="0" />
-                        <Setter Property="MinWidth" Value="30" />
-                        <Setter Property="MinHeight" Value="30" />
+                        <Setter Property="MinWidth" Value="28" />
+                        <Setter Property="MinHeight" Value="28" />
                         <Setter Property="Background" Value="Transparent" />
                         <Setter Property="BorderBrush" Value="Transparent" />
                         <Setter Property="BorderThickness" Value="0" />
-                        <Setter Property="CornerRadius" Value="8" />
+                        <Setter Property="CornerRadius" Value="6" />
                         <Setter Property="Foreground" Value="{ThemeResource ShellTextBrush}" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
                     </Style>
                 </Grid.Resources>
                 <Grid.ColumnDefinitions>
@@ -77,17 +89,17 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoBackCommand}" IsEnabled="{Binding Navigation.CanGoBack}" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
-                    <FontIcon Glyph="&#xE72B;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
+                <Button x:Name="BackButton" Grid.Column="0" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoBackCommand}" IsEnabled="{Binding Navigation.CanGoBack}" IsEnabledChanged="NavToolbarButton_IsEnabledChanged" Loaded="NavToolbarButton_Loaded" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
+                    <FontIcon Glyph="&#xE72B;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{Binding Foreground, ElementName=BackButton}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Button>
-                <Button Grid.Column="1" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoForwardCommand}" IsEnabled="{Binding Navigation.CanGoForward}" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
-                    <FontIcon Glyph="&#xE72A;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
+                <Button x:Name="ForwardButton" Grid.Column="1" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoForwardCommand}" IsEnabled="{Binding Navigation.CanGoForward}" IsEnabledChanged="NavToolbarButton_IsEnabledChanged" Loaded="NavToolbarButton_Loaded" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
+                    <FontIcon Glyph="&#xE72A;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{Binding Foreground, ElementName=ForwardButton}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Button>
-                <Button Grid.Column="2" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoUpCommand}" IsEnabled="{Binding Navigation.CanGoUp}" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
-                    <FontIcon Glyph="&#xE74A;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
+                <Button x:Name="UpButton" Grid.Column="2" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoUpCommand}" IsEnabled="{Binding Navigation.CanGoUp}" IsEnabledChanged="NavToolbarButton_IsEnabledChanged" Loaded="NavToolbarButton_Loaded" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
+                    <FontIcon Glyph="&#xE74A;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{Binding Foreground, ElementName=UpButton}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Button>
-                <Button Grid.Column="3" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding RefreshCommand}" IsEnabled="{Binding Navigation.CanRefresh}" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
-                    <FontIcon Glyph="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
+                <Button x:Name="RefreshButton" Grid.Column="3" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding RefreshCommand}" IsEnabled="{Binding Navigation.CanRefresh}" IsEnabledChanged="NavToolbarButton_IsEnabledChanged" Loaded="NavToolbarButton_Loaded" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
+                    <FontIcon Glyph="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{Binding Foreground, ElementName=RefreshButton}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Button>
 
                 <Border Grid.Column="4" Background="{ThemeResource ShellInputBackgroundBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="8" Tapped="AddressBar_Tapped">
