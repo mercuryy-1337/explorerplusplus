@@ -14,11 +14,13 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="{ThemeResource ShellTopBarBrush}" />
         <Border Grid.Row="1" Background="{ThemeResource ShellChromeBrush}" />
         <Border Grid.Row="2" Background="{ThemeResource ShellChromeBrush}" />
+        <Border Grid.Row="3" Background="{ThemeResource ShellChromeBrush}" />
 
         <Grid x:Name="AppTitleBar" Grid.Row="0" Height="44">
             <Grid.Resources>
@@ -203,7 +205,7 @@
             <Border Grid.Row="1" Margin="16,0,16,0" Height="1" Background="{ThemeResource ShellBorderBrush}" />
         </Grid>
 
-        <Grid Grid.Row="2" Margin="16,0,16,16" ColumnSpacing="20">
+        <Grid Grid.Row="2" Margin="16,0,16,0" ColumnSpacing="20">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="300" />
                 <ColumnDefinition Width="*" />
@@ -235,7 +237,7 @@
                                     <Border Height="1" Background="{ThemeResource ShellBorderBrush}" Margin="0,6,0,10" />
                                     <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ShellSidebarSectionBrush}" Text="{Binding Title}" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <Grid Height="36" Background="Transparent" PointerEntered="FolderPaneRow_PointerEntered" PointerExited="FolderPaneRow_PointerExited" PointerPressed="FolderPaneRow_PointerPressed" RightTapped="FolderPaneRow_RightTapped" Visibility="{Binding RowVisibility}">
+                                <Grid Height="36" Background="Transparent" PointerEntered="FolderPaneRow_PointerEntered" PointerExited="FolderPaneRow_PointerExited" PointerPressed="FolderPaneRow_PointerPressed" PointerReleased="FolderPaneRow_PointerReleased" RightTapped="FolderPaneRow_RightTapped" Visibility="{Binding RowVisibility}">
                                     <Border Margin="6,0" Background="{ThemeResource ShellSelectionBrush}" CornerRadius="9" Opacity="{Binding RowBackgroundOpacity}" />
                                     <Grid IsHitTestVisible="False" Margin="{Binding IndentMargin}" VerticalAlignment="Center">
                                         <Grid.ColumnDefinitions>
@@ -256,7 +258,7 @@
                                         <TextBlock Grid.Column="3" Margin="10,0,10,0" Foreground="{ThemeResource ShellTextBrush}" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                     </Grid>
                                     <controls:HoverCursorGrid Margin="6,0,0,0" Width="{Binding ExpandHitAreaWidth}" Background="Transparent" HorizontalAlignment="Left" IsHitTestVisible="{Binding ChevronHitTestVisible}" Tapped="FolderPaneExpandZone_Tapped" UseArrowCursor="True" />
-                                    <controls:HoverCursorGrid Margin="{Binding ActivateHitAreaMargin}" Background="Transparent" Tapped="FolderPaneRow_Tapped" />
+                                    <controls:HoverCursorGrid Margin="{Binding ActivateHitAreaMargin}" Background="Transparent" PointerReleased="FolderPaneRow_PointerReleased" Tapped="FolderPaneRow_Tapped" />
                                 </Grid>
                             </Grid>
                         </DataTemplate>
@@ -471,7 +473,7 @@
                             </Grid>
                         </Grid>
 
-                        <ListView x:Name="FilesListView" Grid.Row="1" Margin="0,0,0,8" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick" ItemsSource="{Binding Files}" Visibility="{Binding FileListVisibility}">
+                        <ListView x:Name="FilesListView" Grid.Row="1" Margin="0,0,0,8" Background="Transparent" BorderThickness="0" IsItemClickEnabled="False" ItemsSource="{Binding Files}" KeyDown="FilesView_KeyDown" SelectionChanged="FilesView_SelectionChanged" SelectionMode="Extended" Visibility="{Binding FileListVisibility}">
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
                                     <Setter Property="Background" Value="Transparent" />
@@ -484,7 +486,7 @@
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Margin="16,2,16,2" Padding="0,8">
+                                    <Grid Margin="16,2,16,2" Padding="0,8" DoubleTapped="FilesViewItem_DoubleTapped">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="180" />
@@ -507,7 +509,7 @@
                             </ListView.ItemTemplate>
                         </ListView>
 
-                        <GridView x:Name="ThisPcDrivesGridView" Grid.Row="1" Margin="12,12,12,16" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick" ItemsSource="{Binding Files}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="None" Visibility="{Binding ThisPcDriveGridVisibility}">
+                        <GridView x:Name="ThisPcDrivesGridView" Grid.Row="1" Margin="12,12,12,16" Background="Transparent" BorderThickness="0" IsItemClickEnabled="False" ItemsSource="{Binding Files}" KeyDown="FilesView_KeyDown" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FilesView_SelectionChanged" SelectionMode="Extended" Visibility="{Binding ThisPcDriveGridVisibility}">
                             <GridView.Resources>
                                 <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent" />
                                 <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent" />
@@ -555,7 +557,7 @@
                             </GridView.ItemContainerStyle>
                             <GridView.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Width="352" MinHeight="96" Margin="4,4,12,12" Padding="16,14" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" CornerRadius="8" PointerEntered="ThisPcDriveTile_PointerEntered" PointerExited="ThisPcDriveTile_PointerExited" PointerPressed="ThisPcDriveTile_PointerPressed" PointerReleased="ThisPcDriveTile_PointerReleased" PointerCanceled="ThisPcDriveTile_PointerCanceled" PointerCaptureLost="ThisPcDriveTile_PointerCaptureLost">
+                                    <Border Width="352" MinHeight="96" Margin="4,4,12,12" Padding="16,14" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" CornerRadius="8" DoubleTapped="FilesViewItem_DoubleTapped" PointerEntered="ThisPcDriveTile_PointerEntered" PointerExited="ThisPcDriveTile_PointerExited" PointerPressed="ThisPcDriveTile_PointerPressed" PointerReleased="ThisPcDriveTile_PointerReleased" PointerCanceled="ThisPcDriveTile_PointerCanceled" PointerCaptureLost="ThisPcDriveTile_PointerCaptureLost">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
@@ -601,5 +603,13 @@
                 </Border>
             </Grid>
         </Grid>
+
+        <Border Grid.Row="3" Margin="16,12,16,16" Padding="16,8" Background="{ThemeResource ShellChromeBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
+            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <TextBlock Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="{Binding ItemCountSummaryText}" VerticalAlignment="Center" />
+                <Border Width="1" Height="16" Background="{ThemeResource ShellBorderBrush}" VerticalAlignment="Center" Visibility="{Binding SelectedItemsSummaryDividerVisibility}" />
+                <TextBlock Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="{Binding SelectedItemsSummaryText}" VerticalAlignment="Center" Visibility="{Binding SelectedItemsSummaryVisibility}" />
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

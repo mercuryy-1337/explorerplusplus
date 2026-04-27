@@ -2,6 +2,29 @@
 
 This changelog tracks the WinUI host line separately from the upstream Explorer++ history.
 
+## 1.1.0.6 - 2026-04-27
+
+### Added
+
+- Added a bottom info section below the folder pane and content area that shows the live item count for the current location.
+- Added live selected-item status text that appears only when items are selected and updates the selected count plus combined size as selection changes.
+
+### Changed
+
+- Updated file browsing to use Explorer-style selection with double-click or Enter activation so the new info section can track selections without opening items on a single click.
+- Updated selected-item summaries so any selection that includes folders now shows counts only and skips size calculation entirely.
+- Updated folder listings to show a real folder icon immediately while native shell icons finish loading, instead of falling back to the outline glyph.
+- Updated the Downloads quick-access icon path to honor the native Windows Downloads folder icon resource when it is defined through desktop.ini.
+- Updated the WinUI file views so clicking empty space clears the current selection and dragging from empty space creates a marquee for multi-select.
+
+### Fixed
+
+- Fixed intermittent folder-pane navigation misses where a row could highlight on press without switching to the chosen folder when the tap gesture failed to resolve.
+
+### Packaging
+
+- Updated the WinUI host version from 1.1.0.5 to 1.1.0.6.
+
 ## 1.1.0.5 - 2026-04-27
 
 ### Changed

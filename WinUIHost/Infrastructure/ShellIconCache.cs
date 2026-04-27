@@ -8,6 +8,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -35,6 +36,11 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			return CreateImageSource(GetFolderIconPath(activationPath));
 		}
 
+		public static ImageSource? GetGenericFolderIcon()
+		{
+			return CreateImageSource(s_iconCache.GetOrAdd("folder", _ => CreateGenericDirectoryIcon()));
+		}
+
 		public static string? GetFolderIconPath(string activationPath)
 		{
 			if (string.IsNullOrWhiteSpace(activationPath))
@@ -43,6 +49,12 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			}
 
 			var normalizedPath = NormalizePath(activationPath);
+			var customFolderIconPath = GetCustomFolderIconPath(normalizedPath);
+
+			if (!string.IsNullOrWhiteSpace(customFolderIconPath))
+			{
+				return customFolderIconPath;
+			}
 
 			if (IsDriveRoot(normalizedPath) || Directory.Exists(normalizedPath))
 			{
@@ -152,6 +164,157 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			return CreateIconFromShellInfo(cacheKey, path, 0, 0, useSmallIcon);
 		}
 
+		private static string? GetCustomFolderIconPath(string directoryPath)
+		{
+			if (!Directory.Exists(directoryPath))
+			{
+				return null;
+			}
+
+			var desktopIniPath = Path.Combine(directoryPath, "desktop.ini");
+
+			if (!File.Exists(desktopIniPath))
+			{
+				return null;
+			}
+
+			var iconResource = TryReadDesktopIniIconResource(desktopIniPath);
+
+			if (string.IsNullOrWhiteSpace(iconResource))
+			{
+				return null;
+			}
+
+			return s_iconCache.GetOrAdd($"folder:custom:{directoryPath}",
+				_ => CreateIconFromResource($"folder:custom:{directoryPath}", iconResource));
+		}
+
+		private static string? TryReadDesktopIniIconResource(string desktopIniPath)
+		{
+			try
+			{
+				string? iconFile = null;
+				string? iconIndex = null;
+
+				foreach (var rawLine in File.ReadAllLines(desktopIniPath))
+				{
+					var line = rawLine.Trim();
+
+					if (line.Length == 0 || line.StartsWith(";", StringComparison.Ordinal))
+					{
+						continue;
+					}
+
+					if (line.StartsWith("IconResource=", StringComparison.OrdinalIgnoreCase))
+					{
+						return line["IconResource=".Length..].Trim();
+					}
+
+					if (line.StartsWith("IconFile=", StringComparison.OrdinalIgnoreCase))
+					{
+						iconFile = line["IconFile=".Length..].Trim();
+						continue;
+					}
+
+					if (line.StartsWith("IconIndex=", StringComparison.OrdinalIgnoreCase))
+					{
+						iconIndex = line["IconIndex=".Length..].Trim();
+					}
+				}
+
+				if (string.IsNullOrWhiteSpace(iconFile))
+				{
+					return null;
+				}
+
+				return string.IsNullOrWhiteSpace(iconIndex)
+					? iconFile
+					: string.Create(CultureInfo.InvariantCulture, $"{iconFile},{iconIndex}");
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		private static string? CreateIconFromResource(string cacheKey, string iconResource, bool useSmallIcon = true)
+		{
+			if (!TryParseIconResource(iconResource, out var iconPath, out var iconIndex))
+			{
+				return null;
+			}
+
+			var iconCount = ExtractIconEx(iconPath, iconIndex, out var largeIcon, out var smallIcon, 1);
+			var iconHandle = useSmallIcon
+				? (smallIcon != IntPtr.Zero ? smallIcon : largeIcon)
+				: (largeIcon != IntPtr.Zero ? largeIcon : smallIcon);
+
+			if (iconCount == 0 || iconHandle == IntPtr.Zero)
+			{
+				if (smallIcon != IntPtr.Zero)
+				{
+					DestroyIcon(smallIcon);
+				}
+
+				if (largeIcon != IntPtr.Zero && largeIcon != smallIcon)
+				{
+					DestroyIcon(largeIcon);
+				}
+
+				return null;
+			}
+
+			try
+			{
+				using var nativeIcon = Icon.FromHandle(iconHandle);
+				using var icon = (Icon)nativeIcon.Clone();
+				return SaveIconToCacheFile(cacheKey, icon);
+			}
+			catch
+			{
+				return null;
+			}
+			finally
+			{
+				if (smallIcon != IntPtr.Zero)
+				{
+					DestroyIcon(smallIcon);
+				}
+
+				if (largeIcon != IntPtr.Zero && largeIcon != smallIcon)
+				{
+					DestroyIcon(largeIcon);
+				}
+			}
+		}
+
+		private static bool TryParseIconResource(string iconResource, out string iconPath, out int iconIndex)
+		{
+			iconPath = string.Empty;
+			iconIndex = 0;
+
+			if (string.IsNullOrWhiteSpace(iconResource))
+			{
+				return false;
+			}
+
+			var trimmedResource = Environment.ExpandEnvironmentVariables(iconResource.Trim().Trim('"'));
+			var separatorIndex = trimmedResource.LastIndexOf(',');
+
+			if (separatorIndex > 0 && int.TryParse(trimmedResource[(separatorIndex + 1)..], NumberStyles.Integer,
+				CultureInfo.InvariantCulture, out var parsedIndex))
+			{
+				iconPath = trimmedResource[..separatorIndex].Trim().Trim('"');
+				iconIndex = parsedIndex;
+			}
+			else
+			{
+				iconPath = trimmedResource;
+			}
+
+			return !string.IsNullOrWhiteSpace(iconPath) && File.Exists(iconPath);
+		}
+
 		private static string? CreateIconFromShellInfo(string cacheKey, string path, uint fileAttributes,
 			uint extraFlags, bool useSmallIcon = true)
 		{
@@ -250,6 +413,10 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 		[DllImport("shell32.dll", EntryPoint = "SHGetFileInfoW", CharSet = CharSet.Unicode)]
 		private static extern IntPtr SHGetFileInfo(string path, uint fileAttributes,
 			ref SHFILEINFOW shellFileInfo, uint shellFileInfoSize, uint flags);
+
+		[DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+		private static extern uint ExtractIconEx(string fileName, int iconIndex, out IntPtr largeIcon,
+			out IntPtr smallIcon, uint iconCount);
 
 		[DllImport("user32.dll", SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]

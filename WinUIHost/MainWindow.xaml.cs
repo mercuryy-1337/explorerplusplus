@@ -16,6 +16,7 @@ using Microsoft.Win32;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
@@ -23,6 +24,7 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Foundation;
 using Windows.System;
 using Windows.Storage;
 using Windows.UI.ViewManagement;
@@ -34,12 +36,23 @@ namespace ExplorerPlusPlus.WinUIHost
 	public sealed partial class MainWindow : Window
 	{
 		private const string AppDisplayName = "ExplorerX";
+		private const double SelectionMarqueeDragThreshold = 6.0;
 		private const uint WmSetIcon = 0x0080;
 		private static readonly IntPtr IconSmall = IntPtr.Zero;
 		private static readonly IntPtr IconBig = new(1);
 		private static readonly Brush s_transparentBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
 
 		private AppWindow? m_appWindow;
+		private bool m_isSelectionMarqueeOverlayInitialized;
+		private bool m_isUpdatingMarqueeSelection;
+		private UIElement? m_selectionMarqueeCaptureElement;
+		private bool m_isSelectionMarqueeDragging;
+		private Grid m_itemsViewHostGrid = null!;
+		private Grid m_itemsViewSelectionOverlay = null!;
+		private uint m_selectionMarqueePointerId;
+		private Microsoft.UI.Xaml.Shapes.Rectangle m_selectionMarqueeRectangle = null!;
+		private Point m_selectionMarqueeStartPoint;
+		private ListViewBase? m_selectionMarqueeView;
 		private readonly UISettings m_uiSettings = new();
 		private ShellRootViewModel ViewModel { get; }
 
@@ -49,6 +62,8 @@ namespace ExplorerPlusPlus.WinUIHost
 			{
 				AppendLog("MainWindow constructor start");
 				InitializeComponent();
+				AttachFilesViewSelectionHandlers();
+				RootLayout.Loaded += RootLayout_Loaded;
 				m_uiSettings.ColorValuesChanged += OnSystemColorValuesChanged;
 				ApplyCurrentThemeState();
 				ConfigureWindowChrome();
@@ -66,6 +81,85 @@ namespace ExplorerPlusPlus.WinUIHost
 				AppendExceptionDetails("MainWindow constructor exception", ex);
 				throw;
 			}
+		}
+
+		private void RootLayout_Loaded(object sender, RoutedEventArgs e)
+		{
+			RootLayout.Loaded -= RootLayout_Loaded;
+			EnsureSelectionMarqueeOverlay();
+		}
+
+		private void AttachFilesViewSelectionHandlers()
+		{
+			foreach (var view in new ListViewBase[] { FilesListView, ThisPcDrivesGridView })
+			{
+				view.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(FilesView_PointerPressed), true);
+				view.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler(FilesView_PointerMoved), true);
+				view.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(FilesView_PointerReleased), true);
+				view.AddHandler(UIElement.PointerCanceledEvent, new PointerEventHandler(FilesView_PointerCanceled), true);
+				view.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(FilesView_PointerCaptureLost), true);
+				view.Tapped += FilesView_Tapped;
+			}
+		}
+
+		private void EnsureSelectionMarqueeOverlay()
+		{
+			if (m_isSelectionMarqueeOverlayInitialized)
+			{
+				return;
+			}
+
+			var itemsHost = FilesListView.Parent as Grid
+				?? throw new InvalidOperationException("The items view host grid was not found.");
+			m_itemsViewHostGrid = itemsHost;
+
+			m_selectionMarqueeRectangle = new Microsoft.UI.Xaml.Shapes.Rectangle
+			{
+				Width = 0,
+				Height = 0,
+				Fill = GetThemeBrush("ShellSelectionBrush", Windows.UI.Color.FromArgb(96, 0, 120, 215)),
+				Opacity = 0.35,
+				RadiusX = 6,
+				RadiusY = 6,
+				Stroke = GetThemeBrush("ShellAccentBrush", Windows.UI.Color.FromArgb(255, 0, 120, 215)),
+				StrokeThickness = 1,
+				Visibility = Visibility.Collapsed
+			};
+
+			var canvas = new Canvas();
+			canvas.Children.Add(m_selectionMarqueeRectangle);
+
+			m_itemsViewSelectionOverlay = new Grid
+			{
+				IsHitTestVisible = false
+			};
+
+			Grid.SetRow(m_itemsViewSelectionOverlay, Grid.GetRow(FilesListView));
+			m_itemsViewSelectionOverlay.Children.Add(canvas);
+			itemsHost.Children.Add(m_itemsViewSelectionOverlay);
+			itemsHost.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(FilesView_PointerPressed), true);
+			itemsHost.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler(FilesView_PointerMoved), true);
+			itemsHost.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(FilesView_PointerReleased), true);
+			itemsHost.AddHandler(UIElement.PointerCanceledEvent, new PointerEventHandler(FilesView_PointerCanceled), true);
+			itemsHost.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(FilesView_PointerCaptureLost), true);
+			itemsHost.Tapped += FilesView_Tapped;
+			m_isSelectionMarqueeOverlayInitialized = true;
+		}
+
+		private static Brush GetThemeBrush(string resourceKey, Windows.UI.Color fallbackColor)
+		{
+			try
+			{
+				if (Application.Current.Resources[resourceKey] is Brush brush)
+				{
+					return brush;
+				}
+			}
+			catch
+			{
+			}
+
+			return new SolidColorBrush(fallbackColor);
 		}
 
 		private void ApplySystemTheme()
@@ -771,8 +865,43 @@ namespace ExplorerPlusPlus.WinUIHost
 		{
 			if (sender is FrameworkElement element && element.DataContext is FolderPaneItemState folder)
 			{
+				var point = e.GetCurrentPoint(element);
+
+				if (point.Properties.PointerUpdateKind.Equals(Microsoft.UI.Input.PointerUpdateKind.LeftButtonPressed)
+					&& point.Position.X >= folder.ActivateHitAreaMargin.Left)
+				{
+					ViewModel.SelectFolderCommand.Execute(folder);
+					ViewModel.ActivateFolderCommand.Execute(folder);
+					e.Handled = true;
+					return;
+				}
+
 				ViewModel.SelectFolderCommand.Execute(folder);
 			}
+		}
+
+		private void FolderPaneRow_PointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			if (e.Handled || sender is not FrameworkElement element || element.DataContext is not FolderPaneItemState folder)
+			{
+				return;
+			}
+
+			var point = e.GetCurrentPoint(element);
+
+			if (!point.Properties.PointerUpdateKind.Equals(Microsoft.UI.Input.PointerUpdateKind.LeftButtonReleased))
+			{
+				return;
+			}
+
+			if (element is not HoverCursorGrid && point.Position.X < folder.ActivateHitAreaMargin.Left)
+			{
+				return;
+			}
+
+			ViewModel.SelectFolderCommand.Execute(folder);
+			ViewModel.ActivateFolderCommand.Execute(folder);
+			e.Handled = true;
 		}
 
 		private void FolderPaneRow_RightTapped(object sender, RightTappedRoutedEventArgs e)
@@ -1105,12 +1234,315 @@ namespace ExplorerPlusPlus.WinUIHost
 			FilesListView.Focus(FocusState.Programmatic);
 		}
 
-		private void FilesListView_ItemClick(object sender, ItemClickEventArgs e)
+		private void FilesView_SelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
-			if (e.ClickedItem is FileItemState item)
+			if (m_isUpdatingMarqueeSelection)
+			{
+				return;
+			}
+
+			if (sender is ListViewBase view)
+			{
+				ViewModel.UpdateSelectedItemsSummary(view.SelectedItems.OfType<FileItemState>());
+			}
+		}
+
+		private void FilesView_PointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is not UIElement captureElement)
+			{
+				return;
+			}
+
+			var view = sender as ListViewBase ?? GetActiveFilesView();
+
+			if (view == null)
+			{
+				return;
+			}
+
+			var currentPoint = e.GetCurrentPoint(view);
+			var pointerKind = currentPoint.Properties.PointerUpdateKind;
+			var hitContainer = GetFilesViewItemContainer(view, e.OriginalSource as DependencyObject);
+
+			if (!pointerKind.Equals(Microsoft.UI.Input.PointerUpdateKind.LeftButtonPressed)
+				|| hitContainer != null)
+			{
+				return;
+			}
+
+			if (m_selectionMarqueePointerId == e.Pointer.PointerId)
+			{
+				return;
+			}
+
+			BeginSelectionMarquee(view, captureElement, e);
+
+			e.Handled = true;
+		}
+
+		private void FilesView_PointerMoved(object sender, PointerRoutedEventArgs e)
+		{
+			if (!IsTrackingSelectionMarquee(sender, e))
+			{
+				return;
+			}
+
+			var selectionRect = BuildSelectionMarqueeRect(e.GetCurrentPoint(m_itemsViewSelectionOverlay).Position);
+
+			if (!m_isSelectionMarqueeDragging)
+			{
+				if (selectionRect.Width < SelectionMarqueeDragThreshold
+					&& selectionRect.Height < SelectionMarqueeDragThreshold)
+				{
+					return;
+				}
+
+				m_isSelectionMarqueeDragging = true;
+				m_selectionMarqueeRectangle.Visibility = Visibility.Visible;
+			}
+
+			UpdateSelectionMarqueeRectangle(selectionRect);
+			ApplySelectionMarqueeToCurrentView(selectionRect);
+			e.Handled = true;
+		}
+
+		private void FilesView_PointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			if (!IsTrackingSelectionMarquee(sender, e))
+			{
+				return;
+			}
+
+			EndSelectionMarquee();
+			e.Handled = true;
+		}
+
+		private void FilesView_PointerCanceled(object sender, PointerRoutedEventArgs e)
+		{
+			if (!IsTrackingSelectionMarquee(sender, e))
+			{
+				return;
+			}
+
+			CancelSelectionMarquee();
+		}
+
+		private void FilesView_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+		{
+			if (!IsTrackingSelectionMarquee(sender, e))
+			{
+				return;
+			}
+
+			CancelSelectionMarquee();
+		}
+
+		private void FilesView_Tapped(object sender, TappedRoutedEventArgs e)
+		{
+			var view = sender as ListViewBase ?? GetActiveFilesView();
+
+			if (view == null)
+			{
+				return;
+			}
+
+			if (e.OriginalSource is DependencyObject dependencyObject
+				&& GetFilesViewItemContainer(view, dependencyObject) != null)
+			{
+				return;
+			}
+
+			ClearFilesViewSelection(view);
+			e.Handled = true;
+		}
+
+		private void FilesViewItem_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+		{
+			if (sender is FrameworkElement element && element.DataContext is FileItemState item)
 			{
 				ViewModel.ActivateFileItemCommand.Execute(item);
+				e.Handled = true;
 			}
+		}
+
+		private void FilesView_KeyDown(object sender, KeyRoutedEventArgs e)
+		{
+			if (e.Key != VirtualKey.Enter || sender is not Selector selector || selector.SelectedItem is not FileItemState item)
+			{
+				return;
+			}
+
+			ViewModel.ActivateFileItemCommand.Execute(item);
+			e.Handled = true;
+		}
+
+		private void BeginSelectionMarquee(ListViewBase view, PointerRoutedEventArgs e)
+		{
+			BeginSelectionMarquee(view, view, e);
+		}
+
+		private void BeginSelectionMarquee(ListViewBase view, UIElement captureElement, PointerRoutedEventArgs e)
+		{
+			EnsureSelectionMarqueeOverlay();
+			CancelSelectionMarquee();
+
+			m_selectionMarqueeCaptureElement = captureElement;
+			m_selectionMarqueeView = view;
+			m_selectionMarqueePointerId = e.Pointer.PointerId;
+			m_selectionMarqueeStartPoint = e.GetCurrentPoint(m_itemsViewSelectionOverlay).Position;
+			m_isSelectionMarqueeDragging = false;
+
+			HideSelectionMarqueeRectangle();
+			ClearFilesViewSelection(view);
+			view.Focus(FocusState.Programmatic);
+			captureElement.CapturePointer(e.Pointer);
+		}
+
+		private bool IsTrackingSelectionMarquee(object sender, PointerRoutedEventArgs e)
+		{
+			return m_selectionMarqueeView != null
+				&& m_selectionMarqueePointerId != 0
+				&& e.Pointer.PointerId == m_selectionMarqueePointerId;
+		}
+
+		private void EndSelectionMarquee()
+		{
+			m_selectionMarqueeCaptureElement?.ReleasePointerCaptures();
+			ResetSelectionMarqueeState();
+		}
+
+		private void CancelSelectionMarquee()
+		{
+			ResetSelectionMarqueeState();
+		}
+
+		private void ResetSelectionMarqueeState()
+		{
+			m_selectionMarqueeCaptureElement = null;
+			m_selectionMarqueeView = null;
+			m_selectionMarqueePointerId = 0;
+			m_isSelectionMarqueeDragging = false;
+			HideSelectionMarqueeRectangle();
+		}
+
+		private ListViewBase? GetActiveFilesView()
+		{
+			if (ThisPcDrivesGridView.Visibility == Visibility.Visible)
+			{
+				return ThisPcDrivesGridView;
+			}
+
+			return FilesListView.Visibility == Visibility.Visible
+				? FilesListView
+				: null;
+		}
+
+		private void HideSelectionMarqueeRectangle()
+		{
+			m_selectionMarqueeRectangle.Visibility = Visibility.Collapsed;
+			m_selectionMarqueeRectangle.Width = 0;
+			m_selectionMarqueeRectangle.Height = 0;
+			Canvas.SetLeft(m_selectionMarqueeRectangle, 0);
+			Canvas.SetTop(m_selectionMarqueeRectangle, 0);
+		}
+
+		private void ClearFilesViewSelection(ListViewBase view)
+		{
+			if (view.SelectedItems.Count == 0)
+			{
+				return;
+			}
+
+			view.SelectedItems.Clear();
+			ViewModel.UpdateSelectedItemsSummary(Array.Empty<FileItemState>());
+		}
+
+		private void ApplySelectionMarqueeToCurrentView(Rect selectionRect)
+		{
+			if (m_selectionMarqueeView == null)
+			{
+				return;
+			}
+
+			m_isUpdatingMarqueeSelection = true;
+
+			try
+			{
+				m_selectionMarqueeView.SelectedItems.Clear();
+				var selectedCount = 0;
+
+				foreach (var item in m_selectionMarqueeView.Items.Cast<object>())
+				{
+					if (m_selectionMarqueeView.ContainerFromItem(item) is not SelectorItem container
+						|| container.ActualWidth <= 0
+						|| container.ActualHeight <= 0)
+					{
+						continue;
+					}
+
+					var containerRect = container.TransformToVisual(m_itemsViewSelectionOverlay)
+						.TransformBounds(new Rect(0, 0, container.ActualWidth, container.ActualHeight));
+
+					if (DoRectsIntersect(selectionRect, containerRect))
+					{
+						m_selectionMarqueeView.SelectedItems.Add(item);
+						selectedCount++;
+					}
+				}
+			}
+			finally
+			{
+				m_isUpdatingMarqueeSelection = false;
+			}
+
+			ViewModel.UpdateSelectedItemsSummary(m_selectionMarqueeView.SelectedItems.OfType<FileItemState>());
+		}
+
+		private Rect BuildSelectionMarqueeRect(Point currentPoint)
+		{
+			var left = Math.Min(m_selectionMarqueeStartPoint.X, currentPoint.X);
+			var top = Math.Min(m_selectionMarqueeStartPoint.Y, currentPoint.Y);
+			var width = Math.Abs(currentPoint.X - m_selectionMarqueeStartPoint.X);
+			var height = Math.Abs(currentPoint.Y - m_selectionMarqueeStartPoint.Y);
+
+			return new Rect(left, top, width, height);
+		}
+
+		private void UpdateSelectionMarqueeRectangle(Rect selectionRect)
+		{
+			Canvas.SetLeft(m_selectionMarqueeRectangle, selectionRect.X);
+			Canvas.SetTop(m_selectionMarqueeRectangle, selectionRect.Y);
+			m_selectionMarqueeRectangle.Width = selectionRect.Width;
+			m_selectionMarqueeRectangle.Height = selectionRect.Height;
+		}
+
+		private static bool DoRectsIntersect(Rect first, Rect second)
+		{
+			return first.X < second.X + second.Width
+				&& first.X + first.Width > second.X
+				&& first.Y < second.Y + second.Height
+				&& first.Y + first.Height > second.Y;
+		}
+
+		private static SelectorItem? GetFilesViewItemContainer(ListViewBase view, DependencyObject? source)
+		{
+			while (source != null)
+			{
+				if (source is SelectorItem selectorItem)
+				{
+					return selectorItem;
+				}
+
+				if (ReferenceEquals(source, view))
+				{
+					break;
+				}
+
+				source = VisualTreeHelper.GetParent(source);
+			}
+
+			return null;
 		}
 
 		private const uint SeeMaskInvokeIdList = 0x0000000C;

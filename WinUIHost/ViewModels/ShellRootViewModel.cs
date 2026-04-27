@@ -8,6 +8,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -43,10 +44,13 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		private TabState? m_selectedTab;
 		private FolderPaneItemState? m_selectedFolder;
 		private CancellationTokenSource? m_filesRefreshCancellationSource;
+		private CancellationTokenSource? m_selectedItemsSummaryCancellationSource;
 		private string m_currentActivationPath = HomeActivationPath;
 		private string? m_selectedFolderActivationPath;
 		private FileSortColumn m_fileSortColumn = FileSortColumn.Name;
 		private bool m_fileSortAscending = true;
+		private int m_selectedItemCount;
+		private string m_selectedItemsSizeText = string.Empty;
 
 		private enum FileSortColumn
 		{
@@ -81,6 +85,10 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		public Visibility FileListHeaderVisibility => IsThisPcLocation(m_currentActivationPath) ? Visibility.Collapsed : Visibility.Visible;
 		public Visibility FileListVisibility => IsThisPcLocation(m_currentActivationPath) ? Visibility.Collapsed : Visibility.Visible;
 		public Visibility ThisPcDriveGridVisibility => IsThisPcLocation(m_currentActivationPath) ? Visibility.Visible : Visibility.Collapsed;
+		public string ItemCountSummaryText => FormatItemCount(Files.Count);
+		public string SelectedItemsSummaryText => BuildSelectedItemsSummaryText();
+		public Visibility SelectedItemsSummaryVisibility => m_selectedItemCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility SelectedItemsSummaryDividerVisibility => SelectedItemsSummaryVisibility;
 
 		public TabState? SelectedTab
 		{
@@ -103,6 +111,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			Navigation = new NavigationState();
 			FolderPane = new ObservableCollection<FolderPaneItemState>();
 			Files = new ObservableCollection<FileItemState>();
+			Files.CollectionChanged += OnFilesCollectionChanged;
 
 			m_goBackCommand = new RelayCommand(GoBack, () => m_backHistory.Count > 0);
 			m_goForwardCommand = new RelayCommand(GoForward, () => m_forwardHistory.Count > 0);
@@ -187,6 +196,34 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		public void RestoreNavigationPathText()
 		{
 			Navigation.PathText = GetNavigationPathText(m_currentActivationPath);
+		}
+
+		public void UpdateSelectedItemsSummary(IEnumerable<FileItemState>? selectedItems)
+		{
+			var selectedList = selectedItems?
+				.Where(item => item != null)
+				.Distinct()
+				.ToList() ?? new List<FileItemState>();
+
+			CancelSelectedItemsSummaryComputation();
+			m_selectedItemCount = selectedList.Count;
+			m_selectedItemsSizeText = string.Empty;
+			NotifySelectedItemsSummaryChanged();
+
+			if (selectedList.Count == 0)
+			{
+				return;
+			}
+
+			if (selectedList.Any(item => item.IsFolder))
+			{
+				return;
+			}
+
+			var cancellationSource = new CancellationTokenSource();
+			m_selectedItemsSummaryCancellationSource = cancellationSource;
+			var activationPath = m_currentActivationPath;
+			_ = UpdateSelectedItemsSummaryAsync(selectedList, activationPath, cancellationSource.Token);
 		}
 
 		private static IEnumerable<(string Title, string ActivationPath, string Glyph)> BuildPinnedLocationDefinitions()
@@ -567,6 +604,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private void RefreshFiles()
 		{
+			ClearSelectedItemsSummary();
 			m_filesRefreshCancellationSource?.Cancel();
 			m_filesRefreshCancellationSource?.Dispose();
 			m_filesRefreshCancellationSource = new CancellationTokenSource();
@@ -616,11 +654,17 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				}
 
 				var sortedItems = CreateSortedFileSequence(items).ToList();
+				var genericFolderIcon = ShellIconCache.GetGenericFolderIcon();
 
 				Files.Clear();
 
 				foreach (var item in sortedItems)
 				{
+					if (item.IsFolder && item.IconSource == null)
+					{
+						item.IconSource = genericFolderIcon;
+					}
+
 					Files.Add(item);
 				}
 			});
@@ -870,6 +914,134 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			OnPropertyChanged(nameof(FileListHeaderVisibility));
 			OnPropertyChanged(nameof(FileListVisibility));
 			OnPropertyChanged(nameof(ThisPcDriveGridVisibility));
+		}
+
+		private void OnFilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+		{
+			OnPropertyChanged(nameof(ItemCountSummaryText));
+		}
+
+		private void ClearSelectedItemsSummary()
+		{
+			CancelSelectedItemsSummaryComputation();
+			m_selectedItemCount = 0;
+			m_selectedItemsSizeText = string.Empty;
+			NotifySelectedItemsSummaryChanged();
+		}
+
+		private void CancelSelectedItemsSummaryComputation()
+		{
+			m_selectedItemsSummaryCancellationSource?.Cancel();
+			m_selectedItemsSummaryCancellationSource?.Dispose();
+			m_selectedItemsSummaryCancellationSource = null;
+		}
+
+		private async Task UpdateSelectedItemsSummaryAsync(IReadOnlyList<FileItemState> selectedItems,
+			string activationPath, CancellationToken cancellationToken)
+		{
+			long totalSize;
+
+			try
+			{
+				totalSize = await Task.Run(() => CalculateSelectedItemsSize(selectedItems, cancellationToken), cancellationToken);
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+
+			if (cancellationToken.IsCancellationRequested || !PathsEqual(m_currentActivationPath, activationPath))
+			{
+				return;
+			}
+
+			m_dispatcherQueue.TryEnqueue(() =>
+			{
+				if (cancellationToken.IsCancellationRequested || !PathsEqual(m_currentActivationPath, activationPath))
+				{
+					return;
+				}
+
+				m_selectedItemsSizeText = FormatFileSize(totalSize, 1);
+				NotifySelectedItemsSummaryChanged();
+			});
+		}
+
+		private static long CalculateSelectedItemsSize(IEnumerable<FileItemState> selectedItems,
+			CancellationToken cancellationToken)
+		{
+			long totalSize = 0;
+
+			foreach (var item in selectedItems)
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+				totalSize += GetSelectedItemSize(item, cancellationToken);
+			}
+
+			return totalSize;
+		}
+
+		private static long GetSelectedItemSize(FileItemState item, CancellationToken cancellationToken)
+		{
+			if (item.SizeValue.HasValue)
+			{
+				return item.SizeValue.Value;
+			}
+
+			if (!string.IsNullOrWhiteSpace(item.ActivationPath) && item.IsFolder && IsFileSystemPath(item.ActivationPath))
+			{
+				return GetDirectorySize(item.ActivationPath, cancellationToken);
+			}
+
+			if (!string.IsNullOrWhiteSpace(item.ActivationPath) && File.Exists(item.ActivationPath))
+			{
+				return GetFileSize(item.ActivationPath) ?? 0;
+			}
+
+			return 0;
+		}
+
+		private static long GetDirectorySize(string directoryPath, CancellationToken cancellationToken)
+		{
+			if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+			{
+				return 0;
+			}
+
+			try
+			{
+				if ((File.GetAttributes(directoryPath) & FileAttributes.ReparsePoint) != 0)
+				{
+					return 0;
+				}
+			}
+			catch
+			{
+				return 0;
+			}
+
+			long totalSize = 0;
+
+			foreach (var filePath in EnumerateFilesSafe(directoryPath))
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+				totalSize += GetFileSize(filePath) ?? 0;
+			}
+
+			foreach (var childDirectory in EnumerateDirectoriesSafe(directoryPath))
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+				totalSize += GetDirectorySize(childDirectory, cancellationToken);
+			}
+
+			return totalSize;
+		}
+
+		private void NotifySelectedItemsSummaryChanged()
+		{
+			OnPropertyChanged(nameof(SelectedItemsSummaryText));
+			OnPropertyChanged(nameof(SelectedItemsSummaryVisibility));
+			OnPropertyChanged(nameof(SelectedItemsSummaryDividerVisibility));
 		}
 
 		private static bool TryGetSortColumn(string? sortColumnName, out FileSortColumn sortColumn)
@@ -1466,6 +1638,29 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			var decimals = new string('#', Math.Max(0, fractionalDigits));
 			var format = decimals.Length == 0 ? "0" : $"0.{decimals}";
 			return string.Format(CultureInfo.CurrentCulture, "{0:" + format + "} {1}", value, units[unitIndex]);
+		}
+
+		private static string FormatItemCount(int count)
+		{
+			return count == 1
+				? "1 item"
+				: string.Format(CultureInfo.CurrentCulture, "{0:N0} items", count);
+		}
+
+		private string BuildSelectedItemsSummaryText()
+		{
+			if (m_selectedItemCount <= 0)
+			{
+				return string.Empty;
+			}
+
+			var selectedCountText = m_selectedItemCount == 1
+				? "1 item selected"
+				: string.Format(CultureInfo.CurrentCulture, "{0:N0} items selected", m_selectedItemCount);
+
+			return string.IsNullOrWhiteSpace(m_selectedItemsSizeText)
+				? selectedCountText
+				: $"{selectedCountText} {m_selectedItemsSizeText}";
 		}
 
 		private static string GetDisplayTitle(string activationPath)
