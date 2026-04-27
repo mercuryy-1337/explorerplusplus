@@ -1,5 +1,6 @@
 using ExplorerPlusPlus.WinUIHost.Models;
 using ExplorerPlusPlus.WinUIHost.ViewModels;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -10,6 +11,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using Windows.System;
+using WinRT.Interop;
 
 namespace ExplorerPlusPlus.WinUIHost
 {
@@ -19,6 +21,7 @@ namespace ExplorerPlusPlus.WinUIHost
 			Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory,
 			"startup.log");
 
+		private AppWindow? m_appWindow;
 		private ShellRootViewModel ViewModel { get; }
 
 		public MainWindow()
@@ -28,6 +31,7 @@ namespace ExplorerPlusPlus.WinUIHost
 				AppendLog("MainWindow constructor start");
 				InitializeComponent();
 				ApplySystemTheme();
+				ConfigureWindowChrome();
 				AppendLog("InitializeComponent complete");
 				Title = "Explorer++ WinUI Host";
 				ViewModel = new ShellRootViewModel();
@@ -45,6 +49,68 @@ namespace ExplorerPlusPlus.WinUIHost
 		private void ApplySystemTheme()
 		{
 			RootLayout.RequestedTheme = IsSystemDarkTheme() ? ElementTheme.Dark : ElementTheme.Light;
+		}
+
+		private void ConfigureWindowChrome()
+		{
+			if (!AppWindowTitleBar.IsCustomizationSupported())
+			{
+				return;
+			}
+
+			var hwnd = WindowNative.GetWindowHandle(this);
+			var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+			m_appWindow = AppWindow.GetFromWindowId(windowId);
+
+			ExtendsContentIntoTitleBar = true;
+			SetTitleBar(AppTitleBar);
+			UpdateTitleBarInsets();
+			ApplyTitleBarButtonColors();
+		}
+
+		private void UpdateTitleBarInsets()
+		{
+			if (m_appWindow == null)
+			{
+				return;
+			}
+
+			TitleBarLeftInsetColumn.Width = new GridLength(Math.Max(12, m_appWindow.TitleBar.LeftInset));
+			TitleBarRightInsetColumn.Width = new GridLength(Math.Max(138, m_appWindow.TitleBar.RightInset));
+		}
+
+		private void ApplyTitleBarButtonColors()
+		{
+			if (m_appWindow == null)
+			{
+				return;
+			}
+
+			bool darkTheme = IsSystemDarkTheme();
+			var titleBar = m_appWindow.TitleBar;
+
+			if (darkTheme)
+			{
+				titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+				titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+				titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 243, 245, 247);
+				titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(255, 152, 162, 175);
+				titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(255, 42, 48, 56);
+				titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(255, 54, 61, 71);
+				titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 243, 245, 247);
+				titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+			}
+			else
+			{
+				titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+				titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+				titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 23, 24, 26);
+				titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(255, 112, 117, 127);
+				titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(255, 232, 235, 240);
+				titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(255, 222, 226, 232);
+				titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 23, 24, 26);
+				titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(255, 23, 24, 26);
+			}
 		}
 
 		private static bool IsSystemDarkTheme()
