@@ -121,7 +121,13 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		public double DriveUsagePercentage
 		{
 			get => m_driveUsagePercentage;
-			set => SetProperty(ref m_driveUsagePercentage, value);
+			set
+			{
+				if (SetProperty(ref m_driveUsagePercentage, value))
+				{
+					OnPropertyChanged(nameof(DriveUsageScaleX));
+				}
+			}
 		}
 
 		public double NativeIconOpacity => IconSource == null ? 0.0 : 1.0;
@@ -129,5 +135,6 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		public Visibility DriveUsageVisibility => HasDriveUsage ? Visibility.Visible : Visibility.Collapsed;
 		public Visibility NormalDriveUsageVisibility => HasDriveUsage && !IsDriveUsageCritical ? Visibility.Visible : Visibility.Collapsed;
 		public Visibility CriticalDriveUsageVisibility => HasDriveUsage && IsDriveUsageCritical ? Visibility.Visible : Visibility.Collapsed;
+		public double DriveUsageScaleX => DriveUsagePercentage / 100.0;
 	}
 }

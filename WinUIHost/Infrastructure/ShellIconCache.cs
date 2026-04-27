@@ -66,7 +66,8 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			}
 
 			var normalizedPath = NormalizePath(activationPath);
-			return s_iconCache.GetOrAdd($"drive:{normalizedPath}", _ => CreatePathIcon($"drive:{normalizedPath}", normalizedPath));
+			return s_iconCache.GetOrAdd($"drive:large:{normalizedPath}",
+				_ => CreatePathIcon($"drive:large:{normalizedPath}", normalizedPath, useSmallIcon: false));
 		}
 
 		public static ImageSource? GetFileIcon(string filePath)
@@ -146,14 +147,21 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			return CreateIconFromShellInfo($"file:{extension}", $"placeholder{extension}", FileAttributeNormal, ShgfiUseFileAttributes);
 		}
 
-		private static string? CreatePathIcon(string cacheKey, string path)
+		private static string? CreatePathIcon(string cacheKey, string path, bool useSmallIcon = true)
 		{
-			return CreateIconFromShellInfo(cacheKey, path, 0, 0);
+			return CreateIconFromShellInfo(cacheKey, path, 0, 0, useSmallIcon);
 		}
 
-		private static string? CreateIconFromShellInfo(string cacheKey, string path, uint fileAttributes, uint extraFlags)
+		private static string? CreateIconFromShellInfo(string cacheKey, string path, uint fileAttributes,
+			uint extraFlags, bool useSmallIcon = true)
 		{
-			var flags = ShgfiIcon | ShgfiSmallIcon | extraFlags;
+			var flags = ShgfiIcon | extraFlags;
+
+			if (useSmallIcon)
+			{
+				flags |= ShgfiSmallIcon;
+			}
+
 			SHFILEINFOW shellFileInfo = default;
 
 			if (SHGetFileInfo(path, fileAttributes, ref shellFileInfo,

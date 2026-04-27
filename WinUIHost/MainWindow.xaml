@@ -435,41 +435,64 @@
                             </ListView.ItemTemplate>
                         </ListView>
 
-                        <ListView x:Name="ThisPcDrivesListView" Grid.Row="1" Margin="12,12,12,16" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick" ItemsSource="{Binding Files}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="None" Visibility="{Binding ThisPcDriveGridVisibility}">
-                            <ListView.Resources>
+                        <GridView x:Name="ThisPcDrivesGridView" Grid.Row="1" Margin="12,12,12,16" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick" ItemsSource="{Binding Files}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="None" Visibility="{Binding ThisPcDriveGridVisibility}">
+                            <GridView.Resources>
                                 <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent" />
                                 <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent" />
                                 <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
                                 <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent" />
                                 <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent" />
-                            </ListView.Resources>
-                            <ListView.ItemsPanel>
+                                <SolidColorBrush x:Key="ListViewItemBorderBrushPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemBorderBrushPressed" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemBorderBrushSelected" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemBorderBrushSelectedPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemBorderBrushSelectedPressed" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemRevealBorderBrushPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemRevealBorderBrushPressed" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemRevealBorderBrushSelected" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemRevealBorderBrushSelectedPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemRevealBorderBrushSelectedPressed" Color="Transparent" />
+                            </GridView.Resources>
+                            <GridView.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <ItemsWrapGrid Orientation="Horizontal" />
                                 </ItemsPanelTemplate>
-                            </ListView.ItemsPanel>
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
+                            </GridView.ItemsPanel>
+                            <GridView.ItemContainerStyle>
+                                <Style TargetType="GridViewItem">
                                     <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="BorderBrush" Value="Transparent" />
                                     <Setter Property="BorderThickness" Value="0" />
+                                    <Setter Property="UseSystemFocusVisuals" Value="False" />
+                                    <Setter Property="FocusVisualPrimaryThickness" Value="0" />
+                                    <Setter Property="FocusVisualSecondaryThickness" Value="0" />
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                     <Setter Property="Margin" Value="0" />
                                     <Setter Property="MinHeight" Value="0" />
                                     <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="GridViewItem">
+                                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" ContentTransitions="{TemplateBinding ContentTransitions}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
                                 </Style>
-                            </ListView.ItemContainerStyle>
-                            <ListView.ItemTemplate>
+                            </GridView.ItemContainerStyle>
+                            <GridView.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Width="352" MinHeight="96" Margin="4,4,12,12" Padding="16,14" Background="{ThemeResource ShellInputBackgroundBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="10">
+                                    <Border Width="352" MinHeight="96" Margin="4,4,12,12" Padding="16,14" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" CornerRadius="8" PointerEntered="ThisPcDriveTile_PointerEntered" PointerExited="ThisPcDriveTile_PointerExited" PointerPressed="ThisPcDriveTile_PointerPressed" PointerReleased="ThisPcDriveTile_PointerReleased" PointerCanceled="ThisPcDriveTile_PointerCanceled" PointerCaptureLost="ThisPcDriveTile_PointerCaptureLost">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
-                                            <Grid Width="40" Height="40" Margin="0,2,16,0" VerticalAlignment="Top">
-                                                <Image Width="36" Height="36" Opacity="{Binding NativeIconOpacity}" Source="{Binding IconSource}" Stretch="Uniform" />
-                                                <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="30" Foreground="{ThemeResource ShellTextBrush}" HorizontalAlignment="Center" Opacity="{Binding GlyphOpacity}" VerticalAlignment="Center" />
+                                            <Grid Width="32" Height="32" Margin="0,0,14,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                <Image Width="32" Height="32" HorizontalAlignment="Left" Opacity="{Binding NativeIconOpacity}" Source="{Binding IconSource}" Stretch="None" VerticalAlignment="Center" />
+                                                <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="28" Foreground="{ThemeResource ShellTextBrush}" HorizontalAlignment="Left" Opacity="{Binding GlyphOpacity}" VerticalAlignment="Center" />
                                             </Grid>
 
                                             <Grid Grid.Column="1">
@@ -481,9 +504,18 @@
 
                                                 <TextBlock Foreground="{ThemeResource ShellTextBrush}" FontSize="14" FontWeight="SemiBold" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
 
-                                                <Grid Grid.Row="1" Margin="0,8,0,8" Visibility="{Binding DriveUsageVisibility}">
-                                                    <ProgressBar Height="8" Background="{ThemeResource ShellButtonBrush}" Foreground="{ThemeResource ShellAccentBrush}" Maximum="100" Minimum="0" Value="{Binding DriveUsagePercentage}" Visibility="{Binding NormalDriveUsageVisibility}" />
-                                                    <ProgressBar Height="8" Background="{ThemeResource ShellButtonBrush}" Foreground="{ThemeResource ShellCriticalBrush}" Maximum="100" Minimum="0" Value="{Binding DriveUsagePercentage}" Visibility="{Binding CriticalDriveUsageVisibility}" />
+                                                <Grid Grid.Row="1" Margin="0,8,0,8" Height="7" Visibility="{Binding DriveUsageVisibility}">
+                                                    <Border Background="{ThemeResource ShellButtonBrush}" CornerRadius="2" />
+                                                    <Border Background="{ThemeResource ShellAccentBrush}" CornerRadius="2" HorizontalAlignment="Stretch" RenderTransformOrigin="0,0.5" Visibility="{Binding NormalDriveUsageVisibility}">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleX="{Binding DriveUsageScaleX}" />
+                                                        </Border.RenderTransform>
+                                                    </Border>
+                                                    <Border Background="{ThemeResource ShellCriticalBrush}" CornerRadius="2" HorizontalAlignment="Stretch" RenderTransformOrigin="0,0.5" Visibility="{Binding CriticalDriveUsageVisibility}">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleX="{Binding DriveUsageScaleX}" />
+                                                        </Border.RenderTransform>
+                                                    </Border>
                                                 </Grid>
 
                                                 <TextBlock Grid.Row="2" Foreground="{ThemeResource ShellSecondaryTextBrush}" FontSize="12" Text="{Binding Size}" TextTrimming="CharacterEllipsis" />
@@ -491,8 +523,8 @@
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
+                            </GridView.ItemTemplate>
+                        </GridView>
                     </Grid>
                 </Border>
             </Grid>

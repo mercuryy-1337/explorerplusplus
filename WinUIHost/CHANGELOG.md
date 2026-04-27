@@ -17,10 +17,14 @@ This changelog tracks the WinUI host line separately from the upstream Explorer+
 - Updated file-list header hover and pressed feedback so each sortable column highlights as one full rectangular block between dividers instead of only around the label text.
 - Changed This PC to use a native-style drive grid with a large icon on the left, the drive title beside it, a live usage bar in the middle row, and the free-space summary on the bottom row.
 - Rounded the This PC drive free-space summary to two decimal places and switch the usage bar to red when free space drops to 10% or lower.
+- Updated This PC drive tiles to use larger shell icons, letter-based drive ordering, hover-only highlighting without a permanent card background, and a slightly sharper usage bar profile.
+- Removed the extra outer hover outline from This PC drive tiles so only the intended background highlight remains visible.
+- Simplified the This PC tile container chrome so the hover state no longer draws a second outer frame, and vertically centered the drive icon block against the tile content.
 
 ### Fixed
 
 - Fixed the WinUI host window icon path so Alt+Tab uses the ExplorerX app icon instead of falling back to a generic placeholder.
+- Fixed a This PC navigation crash by replacing the drive usage ProgressBar template dependency with a custom usage bar that does not pull missing WinUI theme resources at runtime.
 
 ### Packaging
 

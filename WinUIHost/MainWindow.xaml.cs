@@ -415,6 +415,74 @@ namespace ExplorerPlusPlus.WinUIHost
 			}
 		}
 
+		private static void SetThisPcDriveTileBrush(Border border, string resourceKey)
+		{
+			border.Background = ResolveThemeBrush(resourceKey);
+		}
+
+		private static void ResetThisPcDriveTileBrush(Border border)
+		{
+			border.Background = s_transparentBrush;
+		}
+
+		private void ThisPcDriveTile_PointerEntered(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Border border)
+			{
+				SetThisPcDriveTileBrush(border, "ShellNavButtonHoverBrush");
+			}
+		}
+
+		private void ThisPcDriveTile_PointerExited(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Border border)
+			{
+				ResetThisPcDriveTileBrush(border);
+			}
+		}
+
+		private void ThisPcDriveTile_PointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Border border)
+			{
+				SetThisPcDriveTileBrush(border, "ShellNavButtonPressedBrush");
+			}
+		}
+
+		private void ThisPcDriveTile_PointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Border border)
+			{
+				var point = e.GetCurrentPoint(border).Position;
+
+				if (point.X >= 0 && point.X <= border.ActualWidth
+					&& point.Y >= 0 && point.Y <= border.ActualHeight)
+				{
+					SetThisPcDriveTileBrush(border, "ShellNavButtonHoverBrush");
+				}
+				else
+				{
+					ResetThisPcDriveTileBrush(border);
+				}
+			}
+		}
+
+		private void ThisPcDriveTile_PointerCanceled(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Border border)
+			{
+				ResetThisPcDriveTileBrush(border);
+			}
+		}
+
+		private void ThisPcDriveTile_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Border border)
+			{
+				ResetThisPcDriveTileBrush(border);
+			}
+		}
+
 		private static void ApplyWindowIcon(IntPtr hwnd)
 		{
 			if (string.IsNullOrWhiteSpace(Environment.ProcessPath))
@@ -796,9 +864,9 @@ namespace ExplorerPlusPlus.WinUIHost
 
 		private void FocusCurrentItemsView()
 		{
-			if (ThisPcDrivesListView.Visibility == Visibility.Visible)
+			if (ThisPcDrivesGridView.Visibility == Visibility.Visible)
 			{
-				ThisPcDrivesListView.Focus(FocusState.Programmatic);
+				ThisPcDrivesGridView.Focus(FocusState.Programmatic);
 				return;
 			}
 

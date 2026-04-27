@@ -686,12 +686,12 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 				default:
 					orderedItems = m_fileSortAscending
-						? orderedItems.ThenBy(item => item.Name, comparer)
-						: orderedItems.ThenByDescending(item => item.Name, comparer);
+						? orderedItems.ThenBy(GetNameSortValue, comparer)
+						: orderedItems.ThenByDescending(GetNameSortValue, comparer);
 					return orderedItems;
 			}
 
-			return orderedItems.ThenBy(item => item.Name, comparer);
+			return orderedItems.ThenBy(GetNameSortValue, comparer);
 		}
 
 		private string GetSortGlyph(FileSortColumn column)
@@ -1039,12 +1039,45 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			m_goUpCommand.NotifyCanExecuteChanged();
 		}
 
+		private string GetNameSortValue(FileItemState item)
+		{
+			if (IsThisPcLocation(m_currentActivationPath))
+			{
+				var driveSortKey = GetDriveSortKey(item.ActivationPath);
+
+				if (!string.IsNullOrWhiteSpace(driveSortKey))
+				{
+					return driveSortKey;
+				}
+			}
+
+			return item.Name;
+		}
+
 		private static IEnumerable<DriveInfo> GetSortedDrives()
 		{
 			return DriveInfo.GetDrives()
-				.OrderBy(drive => drive.DriveType == DriveType.Fixed ? 0 : 1)
-				.ThenBy(drive => drive.Name, StringComparer.OrdinalIgnoreCase)
+				.OrderBy(drive => GetDriveSortKey(drive.RootDirectory.FullName), StringComparer.OrdinalIgnoreCase)
 				.ToList();
+		}
+
+		private static string GetDriveSortKey(string activationPath)
+		{
+			try
+			{
+				var root = Path.GetPathRoot(activationPath);
+
+				if (string.IsNullOrWhiteSpace(root))
+				{
+					return activationPath;
+				}
+
+				return root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+			}
+			catch
+			{
+				return activationPath;
+			}
 		}
 
 		private static IEnumerable<string> EnumerateDirectoriesSafe(string directoryPath)
