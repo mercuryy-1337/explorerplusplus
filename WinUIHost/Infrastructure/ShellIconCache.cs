@@ -29,9 +29,12 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 				return null;
 			}
 
-			if (IsDriveRoot(activationPath))
+			var normalizedPath = NormalizePath(activationPath);
+
+			if (IsDriveRoot(normalizedPath) || Directory.Exists(normalizedPath))
 			{
-				return GetDriveIcon(activationPath);
+				return s_iconCache.GetOrAdd($"folder:{normalizedPath}",
+					_ => CreatePathIcon(normalizedPath) ?? CreateGenericDirectoryIcon())?.ImageSource;
 			}
 
 			return s_iconCache.GetOrAdd("folder", _ => CreateGenericDirectoryIcon())?.ImageSource;
@@ -56,13 +59,34 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			}
 
 			var extension = Path.GetExtension(filePath);
+			var normalizedPath = NormalizePath(filePath);
 
 			if (string.IsNullOrWhiteSpace(extension))
 			{
+				if (File.Exists(normalizedPath))
+				{
+					return s_iconCache.GetOrAdd($"file:{normalizedPath}",
+						_ => CreatePathIcon(normalizedPath) ?? CreateGenericFileIcon())?.ImageSource;
+				}
+
 				return s_iconCache.GetOrAdd("file", _ => CreateGenericFileIcon())?.ImageSource;
 			}
 
+			if (File.Exists(normalizedPath) && RequiresPathSpecificIcon(extension))
+			{
+				return s_iconCache.GetOrAdd($"file:{normalizedPath}",
+					_ => CreatePathIcon(normalizedPath) ?? CreateExtensionIcon(extension))?.ImageSource;
+			}
+
 			return s_iconCache.GetOrAdd($"file:{extension}", _ => CreateExtensionIcon(extension))?.ImageSource;
+		}
+
+		private static bool RequiresPathSpecificIcon(string extension)
+		{
+			return extension.Equals(".exe", StringComparison.OrdinalIgnoreCase)
+				|| extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase)
+				|| extension.Equals(".url", StringComparison.OrdinalIgnoreCase)
+				|| extension.Equals(".ico", StringComparison.OrdinalIgnoreCase);
 		}
 
 		private static CachedIcon? CreateGenericDirectoryIcon()

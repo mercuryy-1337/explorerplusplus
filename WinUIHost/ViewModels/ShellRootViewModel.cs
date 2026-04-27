@@ -141,7 +141,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			var previousIndex = m_backHistory.Count - 1;
 			var previousPath = m_backHistory[previousIndex];
 			m_backHistory.RemoveAt(previousIndex);
-			NavigateTo(previousPath, false);
+			NavigateTo(previousPath, false, false);
 		}
 
 		private void GoForward()
@@ -155,7 +155,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			var nextIndex = m_forwardHistory.Count - 1;
 			var nextPath = m_forwardHistory[nextIndex];
 			m_forwardHistory.RemoveAt(nextIndex);
-			NavigateTo(nextPath, false);
+			NavigateTo(nextPath, false, false);
 		}
 
 		private void GoUp()
@@ -167,7 +167,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				return;
 			}
 
-			NavigateTo(parentPath, true);
+			NavigateTo(parentPath, true, false);
 		}
 
 		private bool CanGoUp()
@@ -231,7 +231,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 			if (item.IsFolder)
 			{
-				NavigateTo(item.ActivationPath, true);
+				NavigateTo(item.ActivationPath, true, false);
 				return;
 			}
 
@@ -264,6 +264,12 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			m_currentActivationPath = normalizedActivationPath;
 			m_selectedFolderActivationPath = normalizedActivationPath;
 			EnsureCurrentPathExpanded(normalizedActivationPath);
+
+			if (!refreshFolderPane)
+			{
+				EnsureFolderPaneVisibleForPath(normalizedActivationPath);
+			}
+
 			RefreshState(refreshFolderPane);
 		}
 
@@ -787,14 +793,15 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		private static string BuildDriveTitle(DriveInfo drive)
 		{
 			var driveName = TrimTrailingSeparators(drive.Name);
+			var driveDisplay = driveName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 			var driveLabel = TryGetDriveVolumeLabel(drive);
 
 			if (string.IsNullOrWhiteSpace(driveLabel))
 			{
-				return driveName;
+				return driveDisplay;
 			}
 
-			return $"{driveLabel} ({driveName[^2..]})";
+			return $"{driveLabel} ({driveDisplay})";
 		}
 
 		private static string BuildDriveTypeLabel(DriveInfo drive)

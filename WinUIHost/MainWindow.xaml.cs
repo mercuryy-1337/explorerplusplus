@@ -3,6 +3,7 @@ using ExplorerPlusPlus.WinUIHost.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.Win32;
 using System;
 using System.IO;
 using System.Reflection;
@@ -24,6 +25,7 @@ namespace ExplorerPlusPlus.WinUIHost
 			{
 				AppendLog("MainWindow constructor start");
 				InitializeComponent();
+				ApplySystemTheme();
 				AppendLog("InitializeComponent complete");
 				Title = "Explorer++ WinUI Host";
 				ViewModel = new ShellRootViewModel();
@@ -36,6 +38,21 @@ namespace ExplorerPlusPlus.WinUIHost
 				AppendExceptionDetails("MainWindow constructor exception", ex);
 				throw;
 			}
+		}
+
+		private void ApplySystemTheme()
+		{
+			RootLayout.RequestedTheme = IsSystemDarkTheme() ? ElementTheme.Dark : ElementTheme.Light;
+		}
+
+		private static bool IsSystemDarkTheme()
+		{
+			object? value = Registry.GetValue(
+				@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+				"AppsUseLightTheme",
+				1);
+
+			return value is int intValue && intValue == 0;
 		}
 
 		private static void AppendLog(string message)
