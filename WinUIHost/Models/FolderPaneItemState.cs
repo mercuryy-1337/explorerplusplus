@@ -114,9 +114,8 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 				if (SetProperty(ref m_isSelected, value))
 				{
 					OnPropertyChanged(nameof(RowBackgroundOpacity));
+					OnPropertyChanged(nameof(SelectedBackgroundOpacity));
 					OnPropertyChanged(nameof(SelectionBarOpacity));
-						OnPropertyChanged(nameof(RowBackgroundOpacity));
-						OnPropertyChanged(nameof(SelectedBackgroundOpacity));
 				}
 			}
 		}

@@ -6,8 +6,8 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Storage.Streams;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 {
@@ -19,10 +19,19 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 		private const uint FileAttributeDirectory = 0x00000010;
 		private const uint FileAttributeNormal = 0x00000080;
 
-		private static readonly ConcurrentDictionary<string, CachedIcon?> s_iconCache =
+		private static readonly ConcurrentDictionary<string, string?> s_iconCache =
 			new(StringComparer.OrdinalIgnoreCase);
+		private static readonly string s_iconCacheDirectory = Path.Combine(
+			Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+			"ExplorerPlusPlus.WinUIHost",
+			"IconCache");
 
 		public static ImageSource? GetFolderIcon(string activationPath)
+		{
+			return CreateImageSource(GetFolderIconPath(activationPath));
+		}
+
+		public static string? GetFolderIconPath(string activationPath)
 		{
 			if (string.IsNullOrWhiteSpace(activationPath))
 			{
@@ -34,13 +43,18 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			if (IsDriveRoot(normalizedPath) || Directory.Exists(normalizedPath))
 			{
 				return s_iconCache.GetOrAdd($"folder:{normalizedPath}",
-					_ => CreatePathIcon(normalizedPath) ?? CreateGenericDirectoryIcon())?.ImageSource;
+					_ => CreatePathIcon($"folder:{normalizedPath}", normalizedPath) ?? CreateGenericDirectoryIcon());
 			}
 
-			return s_iconCache.GetOrAdd("folder", _ => CreateGenericDirectoryIcon())?.ImageSource;
+			return s_iconCache.GetOrAdd("folder", _ => CreateGenericDirectoryIcon());
 		}
 
 		public static ImageSource? GetDriveIcon(string activationPath)
+		{
+			return CreateImageSource(GetDriveIconPath(activationPath));
+		}
+
+		public static string? GetDriveIconPath(string activationPath)
 		{
 			if (string.IsNullOrWhiteSpace(activationPath))
 			{
@@ -48,10 +62,15 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			}
 
 			var normalizedPath = NormalizePath(activationPath);
-			return s_iconCache.GetOrAdd($"drive:{normalizedPath}", _ => CreatePathIcon(normalizedPath))?.ImageSource;
+			return s_iconCache.GetOrAdd($"drive:{normalizedPath}", _ => CreatePathIcon($"drive:{normalizedPath}", normalizedPath));
 		}
 
 		public static ImageSource? GetFileIcon(string filePath)
+		{
+			return CreateImageSource(GetFileIconPath(filePath));
+		}
+
+		public static string? GetFileIconPath(string filePath)
 		{
 			if (string.IsNullOrWhiteSpace(filePath))
 			{
@@ -66,19 +85,38 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 				if (File.Exists(normalizedPath))
 				{
 					return s_iconCache.GetOrAdd($"file:{normalizedPath}",
-						_ => CreatePathIcon(normalizedPath) ?? CreateGenericFileIcon())?.ImageSource;
+						_ => CreatePathIcon($"file:{normalizedPath}", normalizedPath) ?? CreateGenericFileIcon());
 				}
 
-				return s_iconCache.GetOrAdd("file", _ => CreateGenericFileIcon())?.ImageSource;
+				return s_iconCache.GetOrAdd("file", _ => CreateGenericFileIcon());
 			}
 
 			if (File.Exists(normalizedPath) && RequiresPathSpecificIcon(extension))
 			{
 				return s_iconCache.GetOrAdd($"file:{normalizedPath}",
-					_ => CreatePathIcon(normalizedPath) ?? CreateExtensionIcon(extension))?.ImageSource;
+					_ => CreatePathIcon($"file:{normalizedPath}", normalizedPath) ?? CreateExtensionIcon(extension));
 			}
 
-			return s_iconCache.GetOrAdd($"file:{extension}", _ => CreateExtensionIcon(extension))?.ImageSource;
+			return s_iconCache.GetOrAdd($"file:{extension}", _ => CreateExtensionIcon(extension));
+		}
+
+		public static ImageSource? CreateImageSource(string? iconPath)
+		{
+			if (string.IsNullOrWhiteSpace(iconPath) || !File.Exists(iconPath))
+			{
+				return null;
+			}
+
+			try
+			{
+				var bitmapImage = new BitmapImage();
+				bitmapImage.UriSource = new Uri(iconPath, UriKind.Absolute);
+				return bitmapImage;
+			}
+			catch
+			{
+				return null;
+			}
 		}
 
 		private static bool RequiresPathSpecificIcon(string extension)
@@ -89,27 +127,27 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 				|| extension.Equals(".ico", StringComparison.OrdinalIgnoreCase);
 		}
 
-		private static CachedIcon? CreateGenericDirectoryIcon()
+		private static string? CreateGenericDirectoryIcon()
 		{
-			return CreateIconFromShellInfo("folder", FileAttributeDirectory, ShgfiUseFileAttributes);
+			return CreateIconFromShellInfo("folder", "folder", FileAttributeDirectory, ShgfiUseFileAttributes);
 		}
 
-		private static CachedIcon? CreateGenericFileIcon()
+		private static string? CreateGenericFileIcon()
 		{
-			return CreateIconFromShellInfo("file.txt", FileAttributeNormal, ShgfiUseFileAttributes);
+			return CreateIconFromShellInfo("file", "file.txt", FileAttributeNormal, ShgfiUseFileAttributes);
 		}
 
-		private static CachedIcon? CreateExtensionIcon(string extension)
+		private static string? CreateExtensionIcon(string extension)
 		{
-			return CreateIconFromShellInfo($"placeholder{extension}", FileAttributeNormal, ShgfiUseFileAttributes);
+			return CreateIconFromShellInfo($"file:{extension}", $"placeholder{extension}", FileAttributeNormal, ShgfiUseFileAttributes);
 		}
 
-		private static CachedIcon? CreatePathIcon(string path)
+		private static string? CreatePathIcon(string cacheKey, string path)
 		{
-			return CreateIconFromShellInfo(path, 0, 0);
+			return CreateIconFromShellInfo(cacheKey, path, 0, 0);
 		}
 
-		private static CachedIcon? CreateIconFromShellInfo(string path, uint fileAttributes, uint extraFlags)
+		private static string? CreateIconFromShellInfo(string cacheKey, string path, uint fileAttributes, uint extraFlags)
 		{
 			var flags = ShgfiIcon | ShgfiSmallIcon | extraFlags;
 			SHFILEINFOW shellFileInfo = default;
@@ -129,7 +167,7 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			{
 				using var nativeIcon = Icon.FromHandle(shellFileInfo.hIcon);
 				using var icon = (Icon)nativeIcon.Clone();
-				return ConvertIconToImageSource(icon);
+				return SaveIconToCacheFile(cacheKey, icon);
 			}
 			catch
 			{
@@ -141,25 +179,31 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			}
 		}
 
-		private static CachedIcon? ConvertIconToImageSource(Icon icon)
+		private static string? SaveIconToCacheFile(string cacheKey, Icon icon)
 		{
-			using var bitmap = icon.ToBitmap();
-			using var stream = new MemoryStream();
-			bitmap.Save(stream, ImageFormat.Png);
-			var bytes = stream.ToArray();
-
-			var randomAccessStream = new InMemoryRandomAccessStream();
-
-			using (var outputStream = randomAccessStream.AsStreamForWrite())
+			try
 			{
-				outputStream.Write(bytes, 0, bytes.Length);
-				outputStream.Flush();
-			}
+				Directory.CreateDirectory(s_iconCacheDirectory);
+				var cachePath = Path.Combine(s_iconCacheDirectory, GetCacheFileName(cacheKey));
 
-			randomAccessStream.Seek(0);
-			var bitmapImage = new BitmapImage();
-			bitmapImage.SetSource(randomAccessStream);
-			return new CachedIcon(bitmapImage, randomAccessStream);
+				if (!File.Exists(cachePath))
+				{
+					using var bitmap = icon.ToBitmap();
+					bitmap.Save(cachePath, ImageFormat.Png);
+				}
+
+				return cachePath;
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		private static string GetCacheFileName(string cacheKey)
+		{
+			var hash = SHA256.HashData(Encoding.UTF8.GetBytes(cacheKey));
+			return Convert.ToHexString(hash) + ".png";
 		}
 
 		private static bool IsDriveRoot(string path)
@@ -213,18 +257,5 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			public string szTypeName;
 		}
 
-		private sealed class CachedIcon
-		{
-			public CachedIcon(ImageSource imageSource, InMemoryRandomAccessStream? backingStream)
-			{
-				ImageSource = imageSource;
-				BackingStream = backingStream;
-			}
-
-			public ImageSource ImageSource { get; }
-
-			// Keep the WinRT stream alive for the lifetime of the cached image.
-			public InMemoryRandomAccessStream? BackingStream { get; }
-		}
 	}
 }

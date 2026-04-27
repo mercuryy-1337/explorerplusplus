@@ -1,5 +1,6 @@
 using ExplorerPlusPlus.WinUIHost.Infrastructure;
 using ExplorerPlusPlus.WinUIHost.Models;
+using Microsoft.UI.Dispatching;
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
@@ -7,6 +8,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 
 namespace ExplorerPlusPlus.WinUIHost.ViewModels
@@ -27,9 +30,11 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		private readonly List<string> m_backHistory = new();
 		private readonly List<string> m_forwardHistory = new();
 		private readonly HashSet<string> m_expandedPaths = new(StringComparer.OrdinalIgnoreCase);
+		private readonly DispatcherQueue m_dispatcherQueue;
 
 		private TabState? m_selectedTab;
 		private FolderPaneItemState? m_selectedFolder;
+		private CancellationTokenSource? m_filesRefreshCancellationSource;
 		private string m_currentActivationPath = HomeActivationPath;
 		private string? m_selectedFolderActivationPath;
 
@@ -61,6 +66,9 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		public ShellRootViewModel()
 		{
+			m_dispatcherQueue = DispatcherQueue.GetForCurrentThread()
+				?? throw new InvalidOperationException("A UI DispatcherQueue is required.");
+
 			Tabs = new ObservableCollection<TabState>();
 			Navigation = new NavigationState();
 			FolderPane = new ObservableCollection<FolderPaneItemState>();
@@ -345,19 +353,125 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private void RefreshFiles()
 		{
+			m_filesRefreshCancellationSource?.Cancel();
+			m_filesRefreshCancellationSource?.Dispose();
+			m_filesRefreshCancellationSource = new CancellationTokenSource();
+
+			var activationPath = m_currentActivationPath;
+			var cancellationToken = m_filesRefreshCancellationSource.Token;
 			Files.Clear();
 
-			foreach (var item in BuildFileItemsForCurrentLocation())
+			if (IsHomeLocation(activationPath) || IsThisPcLocation(activationPath))
 			{
-				Files.Add(item);
+				foreach (var item in BuildFileItemsForLocation(activationPath, includeIcons: true))
+				{
+					Files.Add(item);
+				}
+
+				return;
 			}
+
+			_ = RefreshFilesAsync(activationPath, cancellationToken);
 		}
 
-		private IEnumerable<FileItemState> BuildFileItemsForCurrentLocation()
+		private async Task RefreshFilesAsync(string activationPath, CancellationToken cancellationToken)
 		{
-			var omitSlowMetadata = IsSlowFileSystemLocation(m_currentActivationPath);
+			List<FileItemState> items;
 
-			if (IsHomeLocation(m_currentActivationPath))
+			try
+			{
+				items = await Task.Run(
+					() => BuildFileItemsForLocation(activationPath, includeIcons: false).ToList(),
+					cancellationToken);
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+
+			if (cancellationToken.IsCancellationRequested || !PathsEqual(m_currentActivationPath, activationPath))
+			{
+				return;
+			}
+
+			m_dispatcherQueue.TryEnqueue(() =>
+			{
+				if (cancellationToken.IsCancellationRequested || !PathsEqual(m_currentActivationPath, activationPath))
+				{
+					return;
+				}
+
+				Files.Clear();
+
+				foreach (var item in items)
+				{
+					Files.Add(item);
+				}
+			});
+
+			_ = PopulateFileIconsAsync(activationPath, items, cancellationToken);
+		}
+
+		private async Task PopulateFileIconsAsync(string activationPath, IReadOnlyList<FileItemState> items,
+			CancellationToken cancellationToken)
+		{
+			List<(FileItemState Item, string? IconPath)> iconUpdates;
+
+			try
+			{
+				iconUpdates = await Task.Run(() =>
+				{
+					var updates = new List<(FileItemState Item, string? IconPath)>(items.Count);
+
+					foreach (var item in items)
+					{
+						if (cancellationToken.IsCancellationRequested)
+						{
+							break;
+						}
+
+						string? iconPath = item.IsFolder
+							? ShellIconCache.GetFolderIconPath(item.ActivationPath)
+							: ShellIconCache.GetFileIconPath(item.ActivationPath);
+
+						updates.Add((item, iconPath));
+					}
+
+					return updates;
+				}, cancellationToken);
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+
+			if (cancellationToken.IsCancellationRequested || !PathsEqual(m_currentActivationPath, activationPath))
+			{
+				return;
+			}
+
+			m_dispatcherQueue.TryEnqueue(() =>
+			{
+				if (cancellationToken.IsCancellationRequested || !PathsEqual(m_currentActivationPath, activationPath))
+				{
+					return;
+				}
+
+				foreach (var update in iconUpdates)
+				{
+					if (!string.IsNullOrWhiteSpace(update.IconPath))
+					{
+						update.Item.IconSource = ShellIconCache.CreateImageSource(update.IconPath);
+					}
+				}
+			});
+		}
+
+		private IEnumerable<FileItemState> BuildFileItemsForLocation(string activationPath, bool includeIcons)
+		{
+			var omitSlowMetadata = IsSlowFileSystemLocation(activationPath);
+
+			if (IsHomeLocation(activationPath))
 			{
 				foreach (var pinnedLocation in BuildPinnedLocationDefinitions())
 				{
@@ -370,7 +484,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 					{
 						Name = pinnedLocation.Title,
 						Glyph = pinnedLocation.Glyph,
-						IconSource = IsFileSystemPath(pinnedLocation.ActivationPath)
+						IconSource = includeIcons && IsFileSystemPath(pinnedLocation.ActivationPath)
 							? ShellIconCache.GetFolderIcon(pinnedLocation.ActivationPath)
 							: null,
 						ItemType = "Folder",
@@ -391,7 +505,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				yield break;
 			}
 
-			if (IsThisPcLocation(m_currentActivationPath))
+			if (IsThisPcLocation(activationPath))
 			{
 				foreach (var drive in GetSortedDrives())
 				{
@@ -399,7 +513,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 					{
 						Name = BuildDriveTitle(drive),
 						Glyph = "\uEDA2",
-						IconSource = ShellIconCache.GetDriveIcon(drive.RootDirectory.FullName),
+						IconSource = includeIcons ? ShellIconCache.GetDriveIcon(drive.RootDirectory.FullName) : null,
 						ItemType = BuildDriveTypeLabel(drive),
 						Modified = string.Empty,
 						Size = BuildDriveCapacityLabel(drive),
@@ -411,18 +525,18 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				yield break;
 			}
 
-			if (!Directory.Exists(m_currentActivationPath))
+			if (!Directory.Exists(activationPath))
 			{
 				yield break;
 			}
 
-			foreach (var directory in EnumerateDirectoriesSafe(m_currentActivationPath))
+			foreach (var directory in EnumerateDirectoriesSafe(activationPath))
 			{
 				yield return new FileItemState
 				{
 					Name = GetFileSystemDisplayName(directory),
 					Glyph = "\uE8B7",
-					IconSource = ShellIconCache.GetFolderIcon(directory),
+					IconSource = includeIcons ? ShellIconCache.GetFolderIcon(directory) : null,
 					ItemType = "Folder",
 					Modified = string.Empty,
 					Size = string.Empty,
@@ -431,13 +545,13 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				};
 			}
 
-			foreach (var file in EnumerateFilesSafe(m_currentActivationPath))
+			foreach (var file in EnumerateFilesSafe(activationPath))
 			{
 				yield return new FileItemState
 				{
 					Name = Path.GetFileName(file),
 					Glyph = "\uE8A5",
-					IconSource = ShellIconCache.GetFileIcon(file),
+					IconSource = includeIcons ? ShellIconCache.GetFileIcon(file) : null,
 					ItemType = BuildFileTypeLabel(file),
 					Modified = omitSlowMetadata ? string.Empty : FormatTimestamp(GetFileWriteTime(file)),
 					Size = omitSlowMetadata ? string.Empty : FormatFileSize(GetFileSize(file)),
@@ -479,7 +593,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 						IconSource = IsFileSystemPath(pinnedLocation.ActivationPath)
 							? ShellIconCache.GetFolderIcon(pinnedLocation.ActivationPath)
 							: null,
-						CanExpand = false,
+						CanExpand = IsQuickAccessFolderExpandable(pinnedLocation.ActivationPath),
 						IsExpanded = false,
 						Depth = 0
 					});
@@ -520,6 +634,14 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				return;
 			}
 
+			var quickAccessItem = FindQuickAccessBranchRoot(activationPath);
+
+			if (quickAccessItem != null)
+			{
+				ExpandBranchToPath(quickAccessItem, activationPath);
+				return;
+			}
+
 			var thisPcItem = FindFolderPaneItem(ThisPcActivationPath);
 
 			if (thisPcItem == null)
@@ -527,17 +649,34 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				return;
 			}
 
-			ExpandFolderInPane(thisPcItem);
+			ExpandBranchToPath(thisPcItem, activationPath);
+		}
+
+		private FolderPaneItemState? FindQuickAccessBranchRoot(string activationPath)
+		{
+			return FolderPane
+				.Where(item => !item.IsHeader && item.Depth == 0 && IsFileSystemPath(item.ActivationPath)
+					&& IsFileSystemBranch(activationPath, item.ActivationPath))
+				.OrderByDescending(item => item.ActivationPath.Length)
+				.FirstOrDefault();
+		}
+
+		private void ExpandBranchToPath(FolderPaneItemState rootItem, string activationPath)
+		{
+			if (!PathsEqual(rootItem.ActivationPath, activationPath) && rootItem.CanExpand)
+			{
+				ExpandFolderInPane(rootItem);
+			}
 
 			var ancestors = new Stack<string>();
 			var currentPath = NormalizeFileSystemPath(activationPath);
 
-			while (!string.IsNullOrEmpty(currentPath))
+			while (!string.IsNullOrEmpty(currentPath) && !PathsEqual(currentPath, rootItem.ActivationPath))
 			{
 				ancestors.Push(currentPath);
 				var parentPath = GetParentDirectoryPath(currentPath);
 
-				if (parentPath == null)
+				if (parentPath == null || !IsFileSystemBranch(activationPath, parentPath))
 				{
 					break;
 				}
@@ -545,7 +684,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				currentPath = parentPath;
 			}
 
-			FolderPaneItemState? parentItem = thisPcItem;
+			FolderPaneItemState? parentItem = rootItem;
 
 			while (ancestors.Count > 0)
 			{
@@ -570,6 +709,12 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 				parentItem = pathItem;
 			}
+		}
+
+		private bool IsQuickAccessFolderExpandable(string activationPath)
+		{
+			return IsFileSystemPath(activationPath)
+				&& (HasChildDirectories(activationPath) || IsFileSystemBranch(m_currentActivationPath, activationPath));
 		}
 
 		private FolderPaneItemState? FindFolderPaneItem(string activationPath)
