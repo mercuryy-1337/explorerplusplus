@@ -132,6 +132,8 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 				if (SetProperty(ref m_depth, value))
 				{
 					OnPropertyChanged(nameof(IndentMargin));
+					OnPropertyChanged(nameof(ExpandHitAreaWidth));
+					OnPropertyChanged(nameof(ActivateHitAreaMargin));
 				}
 			}
 		}
@@ -146,6 +148,8 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		public Visibility HeaderVisibility => IsHeader ? Visibility.Visible : Visibility.Collapsed;
 		public Visibility RowVisibility => IsHeader ? Visibility.Collapsed : Visibility.Visible;
 		public Thickness IndentMargin => new Thickness(12 + (Depth * 18), 0, 10, 0);
+		public double ExpandHitAreaWidth => 38 + (Depth * 18);
+		public Thickness ActivateHitAreaMargin => new Thickness(44 + (Depth * 18), 0, 6, 0);
 		public double NativeIconOpacity => IconSource == null ? 0.0 : 1.0;
 		public double GlyphOpacity => IconSource == null ? 1.0 : 0.0;
 	}

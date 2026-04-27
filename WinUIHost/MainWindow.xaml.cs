@@ -76,6 +76,7 @@ namespace ExplorerPlusPlus.WinUIHost
 		private void ApplyCurrentThemeState()
 		{
 			ApplySystemTheme();
+			RefreshAddressPathTextBoxThemeResources();
 
 			if (m_appWindow != null)
 			{
@@ -109,6 +110,22 @@ namespace ExplorerPlusPlus.WinUIHost
 			AddressPathTextBox.Resources["TextControlBorderBrush"] = s_transparentBrush;
 			AddressPathTextBox.Resources["TextControlBorderBrushPointerOver"] = s_transparentBrush;
 			AddressPathTextBox.Resources["TextControlBorderBrushFocused"] = s_transparentBrush;
+			RefreshAddressPathTextBoxThemeResources();
+		}
+
+		private void RefreshAddressPathTextBoxThemeResources()
+		{
+			var textBrush = ResolveThemeBrush("ShellTextBrush");
+			var secondaryTextBrush = ResolveThemeBrush("ShellSecondaryTextBrush");
+
+			AddressPathTextBox.Foreground = textBrush;
+			AddressPathTextBox.Resources["TextControlForeground"] = textBrush;
+			AddressPathTextBox.Resources["TextControlForegroundPointerOver"] = textBrush;
+			AddressPathTextBox.Resources["TextControlForegroundFocused"] = textBrush;
+			AddressPathTextBox.Resources["TextControlForegroundPointerOverFocused"] = textBrush;
+			AddressPathTextBox.Resources["TextControlForegroundDisabled"] = secondaryTextBrush;
+			AddressPathTextBox.Resources["TextControlPlaceholderForeground"] = secondaryTextBrush;
+			AddressPathTextBox.Resources["TextControlPlaceholderForegroundFocused"] = secondaryTextBrush;
 		}
 
 		private void ConfigureWindowChrome()
@@ -232,9 +249,38 @@ namespace ExplorerPlusPlus.WinUIHost
 			}
 		}
 
-		private static Brush ResolveThemeBrush(string key)
+		private Brush ResolveThemeBrush(string key)
 		{
-			if (Application.Current.Resources.TryGetValue(key, out var resource)
+			var resources = Application.Current?.Resources;
+
+			if (resources == null)
+			{
+				return s_transparentBrush;
+			}
+
+			var themeKey = RootLayout.ActualTheme switch
+			{
+				ElementTheme.Dark => "Dark",
+				ElementTheme.Light => "Light",
+				_ => RootLayout.RequestedTheme switch
+				{
+					ElementTheme.Dark => "Dark",
+					ElementTheme.Light => "Light",
+					_ => "Default"
+				}
+			};
+
+			if (TryResolveThemeBrush(resources, themeKey, key, out var themedBrush))
+			{
+				return themedBrush;
+			}
+
+			if (themeKey != "Default" && TryResolveThemeBrush(resources, "Default", key, out themedBrush))
+			{
+				return themedBrush;
+			}
+
+			if (resources.TryGetValue(key, out var resource)
 				&& resource is Brush brush)
 			{
 				return brush;
@@ -243,12 +289,28 @@ namespace ExplorerPlusPlus.WinUIHost
 			return s_transparentBrush;
 		}
 
-		private static void SetNavToolbarButtonBrush(Button button, string resourceKey)
+		private static bool TryResolveThemeBrush(ResourceDictionary resources, string themeKey, string key,
+			out Brush brush)
+		{
+			if (resources.ThemeDictionaries.TryGetValue(themeKey, out var themedDictionary)
+				&& themedDictionary is ResourceDictionary resourceDictionary
+				&& resourceDictionary.TryGetValue(key, out var resource)
+				&& resource is Brush themedBrush)
+			{
+				brush = themedBrush;
+				return true;
+			}
+
+			brush = s_transparentBrush;
+			return false;
+		}
+
+		private void SetNavToolbarButtonBrush(Button button, string resourceKey)
 		{
 			button.Background = ResolveThemeBrush(resourceKey);
 		}
 
-		private static void UpdateNavToolbarButtonVisual(Button button)
+		private void UpdateNavToolbarButtonVisual(Button button)
 		{
 			button.Foreground = ResolveThemeBrush(button.IsEnabled ? "ShellTextBrush" : "ShellSecondaryTextBrush");
 
@@ -344,7 +406,7 @@ namespace ExplorerPlusPlus.WinUIHost
 			return null;
 		}
 
-		private static void SetFileListHeaderButtonBrush(Button button, string resourceKey)
+		private void SetFileListHeaderButtonBrush(Button button, string resourceKey)
 		{
 			if (GetFileListHeaderBackground(button) is Border background)
 			{
@@ -415,7 +477,7 @@ namespace ExplorerPlusPlus.WinUIHost
 			}
 		}
 
-		private static void SetThisPcDriveTileBrush(Border border, string resourceKey)
+		private void SetThisPcDriveTileBrush(Border border, string resourceKey)
 		{
 			border.Background = ResolveThemeBrush(resourceKey);
 		}
@@ -514,21 +576,22 @@ namespace ExplorerPlusPlus.WinUIHost
 			}
 		}
 
-		private void FoldersPaneListView_ItemClick(object sender, ItemClickEventArgs e)
-		{
-			if (e.ClickedItem is FolderPaneItemState folder)
-			{
-				ViewModel.SelectFolderCommand.Execute(folder);
-				Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(
-					() => ViewModel.ActivateFolderCommand.Execute(folder));
-			}
-		}
-
-		private void FolderPaneChevron_Tapped(object sender, TappedRoutedEventArgs e)
+		private void FolderPaneExpandZone_Tapped(object sender, TappedRoutedEventArgs e)
 		{
 			if (sender is FrameworkElement element && element.DataContext is FolderPaneItemState folder)
 			{
+				ViewModel.SelectFolderCommand.Execute(folder);
 				ViewModel.ToggleFolderExpansionCommand.Execute(folder);
+				e.Handled = true;
+			}
+		}
+
+		private void FolderPaneRow_Tapped(object sender, TappedRoutedEventArgs e)
+		{
+			if (sender is FrameworkElement element && element.DataContext is FolderPaneItemState folder)
+			{
+				ViewModel.SelectFolderCommand.Execute(folder);
+				ViewModel.ActivateFolderCommand.Execute(folder);
 				e.Handled = true;
 			}
 		}
@@ -849,13 +912,27 @@ namespace ExplorerPlusPlus.WinUIHost
 
 		private void AddressPathTextBox_LostFocus(object sender, RoutedEventArgs e)
 		{
+			ViewModel.RestoreNavigationPathText();
 			ViewModel.Navigation.IsPathTextVisible = false;
 		}
 
 		private void AddressPathTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
 		{
-			if (e.Key == VirtualKey.Enter || e.Key == VirtualKey.Escape)
+			if (e.Key == VirtualKey.Enter)
 			{
+				if (ViewModel.TryNavigateToPath(AddressPathTextBox.Text))
+				{
+					ViewModel.Navigation.IsPathTextVisible = false;
+					FocusCurrentItemsView();
+				}
+
+				e.Handled = true;
+				return;
+			}
+
+			if (e.Key == VirtualKey.Escape)
+			{
+				ViewModel.RestoreNavigationPathText();
 				ViewModel.Navigation.IsPathTextVisible = false;
 				FocusCurrentItemsView();
 				e.Handled = true;

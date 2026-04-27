@@ -125,7 +125,7 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <TextBox x:Name="AddressPathTextBox" Margin="12,0" Padding="0,9,0,7" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Foreground="{ThemeResource ShellTextBrush}" IsReadOnly="True" KeyDown="AddressPathTextBox_KeyDown" LostFocus="AddressPathTextBox_LostFocus" Text="{Binding Navigation.PathText}" Visibility="{Binding Navigation.PathTextVisibility}" />
+                        <TextBox x:Name="AddressPathTextBox" Margin="12,0" Padding="0,9,0,7" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Foreground="{ThemeResource ShellTextBrush}" IsReadOnly="False" KeyDown="AddressPathTextBox_KeyDown" LostFocus="AddressPathTextBox_LostFocus" Text="{Binding Navigation.PathText, Mode=TwoWay}" Visibility="{Binding Navigation.PathTextVisibility}" />
                     </Grid>
                 </Border>
             </Grid>
@@ -140,7 +140,7 @@
             </Grid.ColumnDefinitions>
 
             <Grid Grid.Column="0" Margin="0,16,0,0">
-                <ListView x:Name="FoldersPaneListView" Margin="0,0,0,0" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FoldersPaneListView_ItemClick" ItemsSource="{Binding FolderPane}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="None">
+                <ListView x:Name="FoldersPaneListView" Margin="0,0,0,0" Background="Transparent" BorderThickness="0" ItemsSource="{Binding FolderPane}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="None">
                     <ListView.Resources>
                         <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent" />
                         <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent" />
@@ -165,27 +165,29 @@
                                     <Border Height="1" Background="{ThemeResource ShellBorderBrush}" Margin="0,6,0,10" />
                                     <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ShellSidebarSectionBrush}" Text="{Binding Title}" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <controls:HoverCursorGrid Height="36" PointerEntered="FolderPaneRow_PointerEntered" PointerExited="FolderPaneRow_PointerExited" PointerPressed="FolderPaneRow_PointerPressed" RightTapped="FolderPaneRow_RightTapped" Visibility="{Binding RowVisibility}">
+                                <Grid Height="36" Background="Transparent" PointerEntered="FolderPaneRow_PointerEntered" PointerExited="FolderPaneRow_PointerExited" PointerPressed="FolderPaneRow_PointerPressed" RightTapped="FolderPaneRow_RightTapped" Visibility="{Binding RowVisibility}">
                                     <Border Margin="6,0" Background="{ThemeResource ShellSelectionBrush}" CornerRadius="9" Opacity="{Binding RowBackgroundOpacity}" />
-                                    <Grid Margin="{Binding IndentMargin}" VerticalAlignment="Center">
+                                    <Grid IsHitTestVisible="False" Margin="{Binding IndentMargin}" VerticalAlignment="Center">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="6" />
-                                            <ColumnDefinition Width="18" />
+                                            <ColumnDefinition Width="26" />
                                             <ColumnDefinition Width="20" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
 
                                         <Border Grid.Column="0" Width="3" Height="16" Background="{ThemeResource ShellAccentBrush}" CornerRadius="2" HorizontalAlignment="Left" Opacity="{Binding SelectionBarOpacity}" VerticalAlignment="Center" />
-                                        <controls:HoverCursorGrid Grid.Column="1" Width="18" Height="18" DataContext="{Binding}" IsHitTestVisible="{Binding ChevronHitTestVisible}" Opacity="{Binding ChevronOpacity}" Tapped="FolderPaneChevron_Tapped" UseArrowCursor="True" VerticalAlignment="Center">
+                                        <Grid Grid.Column="1" Width="26" Height="26" Opacity="{Binding ChevronOpacity}" VerticalAlignment="Center">
                                             <FontIcon Glyph="{Binding ExpandIndicator}" FontFamily="Segoe Fluent Icons" FontSize="10" Foreground="{ThemeResource ShellSecondaryTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </controls:HoverCursorGrid>
+                                        </Grid>
                                         <Grid Grid.Column="2" Width="16" Height="16" VerticalAlignment="Center">
                                             <Image Width="16" Height="16" Opacity="{Binding NativeIconOpacity}" Source="{Binding IconSource}" Stretch="Uniform" />
                                             <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{ThemeResource ShellTextBrush}" HorizontalAlignment="Center" Opacity="{Binding GlyphOpacity}" VerticalAlignment="Center" />
                                         </Grid>
                                         <TextBlock Grid.Column="3" Margin="10,0,10,0" Foreground="{ThemeResource ShellTextBrush}" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                     </Grid>
-                                </controls:HoverCursorGrid>
+                                    <controls:HoverCursorGrid Margin="6,0,0,0" Width="{Binding ExpandHitAreaWidth}" Background="Transparent" HorizontalAlignment="Left" IsHitTestVisible="{Binding ChevronHitTestVisible}" Tapped="FolderPaneExpandZone_Tapped" UseArrowCursor="True" />
+                                    <controls:HoverCursorGrid Margin="{Binding ActivateHitAreaMargin}" Background="Transparent" Tapped="FolderPaneRow_Tapped" />
+                                </Grid>
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>

@@ -2,6 +2,23 @@
 
 This changelog tracks the WinUI host line separately from the upstream Explorer++ history.
 
+## 1.1.0.5 - 2026-04-27
+
+### Changed
+
+- Made the address bar editable so typed paths can be submitted with Enter, including environment-variable paths such as %LOCALAPPDATA% and %USERPROFILE%.
+- Updated the This PC drive summary to switch from GB to TB when capacities reach four-digit gigabyte ranges.
+- Split the folder-pane interaction zones so the strip before the icon stays dedicated to expansion with the normal cursor, while the icon-through-right-edge region keeps the hand cursor for navigation.
+
+### Fixed
+
+- Fixed the address bar text colors in dark mode so typed paths remain readable against the shell input background.
+- Fixed the split folder-pane hit zones so hover, open, and expand/collapse interactions stay functional while keeping the separate arrow and hand cursor regions.
+
+### Packaging
+
+- Updated the WinUI host version from 1.1.0.4 to 1.1.0.5.
+
 ## 1.1.0.4 - 2026-04-27
 
 ### Added

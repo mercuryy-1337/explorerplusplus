@@ -119,6 +119,24 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			RefreshState(false);
 		}
 
+		public bool TryNavigateToPath(string? pathText)
+		{
+			var resolvedPath = TryResolveTypedNavigationPath(pathText);
+
+			if (resolvedPath == null)
+			{
+				return false;
+			}
+
+			NavigateTo(resolvedPath, true);
+			return true;
+		}
+
+		public void RestoreNavigationPathText()
+		{
+			Navigation.PathText = GetNavigationPathText(m_currentActivationPath);
+		}
+
 		private static IEnumerable<(string Title, string ActivationPath, string Glyph)> BuildPinnedLocationDefinitions()
 		{
 			yield return ("Home", HomeActivationPath, "\uE80F");
@@ -371,8 +389,8 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			Navigation.CanGoForward = m_forwardHistory.Count > 0;
 			Navigation.CanGoUp = CanGoUp();
 			Navigation.CanRefresh = true;
-			Navigation.CanShowPathText = IsFileSystemPath(m_currentActivationPath);
-			Navigation.PathText = Navigation.CanShowPathText ? NormalizeFileSystemPath(m_currentActivationPath) : string.Empty;
+			Navigation.CanShowPathText = true;
+			Navigation.PathText = GetNavigationPathText(m_currentActivationPath);
 			Navigation.IsPathTextVisible = false;
 			RefreshNavigationBreadcrumbs();
 		}
@@ -1351,6 +1369,13 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			return activationPath;
 		}
 
+		private static string GetNavigationPathText(string activationPath)
+		{
+			return IsFileSystemPath(activationPath)
+				? NormalizeFileSystemPath(activationPath)
+				: GetDisplayPath(activationPath);
+		}
+
 		private static IEnumerable<NavigationSegmentState> BuildNavigationSegments(string activationPath)
 		{
 			if (IsHomeLocation(activationPath))
@@ -1525,6 +1550,56 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			}
 
 			return NormalizeFileSystemPath(Environment.ExpandEnvironmentVariables(activationPath));
+		}
+
+		private static string? TryResolveTypedNavigationPath(string? pathText)
+		{
+			if (string.IsNullOrWhiteSpace(pathText))
+			{
+				return null;
+			}
+
+			var trimmedPath = pathText.Trim().Trim('"');
+
+			if (string.IsNullOrWhiteSpace(trimmedPath))
+			{
+				return null;
+			}
+
+			if (trimmedPath.Equals("Home", StringComparison.OrdinalIgnoreCase) || IsHomeLocation(trimmedPath))
+			{
+				return HomeActivationPath;
+			}
+
+			if (trimmedPath.Equals("This PC", StringComparison.OrdinalIgnoreCase) || IsThisPcLocation(trimmedPath))
+			{
+				return ThisPcActivationPath;
+			}
+
+			try
+			{
+				var expandedPath = Environment.ExpandEnvironmentVariables(trimmedPath);
+
+				if (File.Exists(expandedPath))
+				{
+					var parentDirectory = Path.GetDirectoryName(Path.GetFullPath(expandedPath));
+
+					if (!string.IsNullOrWhiteSpace(parentDirectory) && Directory.Exists(parentDirectory))
+					{
+						return NormalizeFileSystemPath(parentDirectory);
+					}
+				}
+
+				if (Directory.Exists(expandedPath))
+				{
+					return NormalizeFileSystemPath(expandedPath);
+				}
+			}
+			catch
+			{
+			}
+
+			return null;
 		}
 
 		private static string NormalizeFileSystemPath(string path)
