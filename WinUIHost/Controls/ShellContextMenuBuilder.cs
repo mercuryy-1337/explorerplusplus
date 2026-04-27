@@ -36,6 +36,7 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 	{
 		private const double ContextMenuFontSize = 13;
 		private const double ContextMenuMinWidth = 226;
+		private static readonly CornerRadius s_itemCornerRadius = new(8);
 		private static readonly Thickness s_presenterPadding = new(10, 8, 10, 8);
 		private static readonly Thickness s_itemPadding = new(18, 9, 18, 9);
 		private static readonly Thickness s_separatorMargin = new(18, 5, 18, 5);
@@ -75,6 +76,9 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 					IsEnabled = item.IsEnabled,
 					Style = subItemStyle
 				};
+				subItem.AllowFocusOnInteraction = false;
+				subItem.IsTapEnabled = false;
+				ApplyItemResources(subItem, includeSubMenuStateResources: true);
 
 				foreach (var child in item.Items)
 				{
@@ -90,6 +94,7 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 				IsEnabled = item.IsEnabled,
 				Style = itemStyle
 			};
+			ApplyItemResources(flyoutItem, includeSubMenuStateResources: false);
 
 			if (item.Invoked != null)
 			{
@@ -118,19 +123,57 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 			style.Setters.Add(new Setter(Control.FontSizeProperty, ContextMenuFontSize));
 			style.Setters.Add(new Setter(Control.MinWidthProperty, ContextMenuMinWidth));
 			style.Setters.Add(new Setter(Control.PaddingProperty, s_itemPadding));
+			style.Setters.Add(new Setter(Control.CornerRadiusProperty, s_itemCornerRadius));
+			style.Setters.Add(new Setter(Control.UseSystemFocusVisualsProperty, false));
 			return style;
+		}
+
+		private static void ApplyItemResources(FrameworkElement item, bool includeSubMenuStateResources)
+		{
+			var hoverBackgroundBrush = ResolveThemeBrush("ShellNavButtonHoverBrush");
+			var textBrush = ResolveThemeBrush("ShellTextBrush");
+			var chevronBrush = ResolveThemeBrush("ShellSecondaryTextBrush");
+
+			item.Resources["MenuFlyoutItemBackgroundPointerOver"] = hoverBackgroundBrush;
+			item.Resources["MenuFlyoutItemBackgroundPressed"] = hoverBackgroundBrush;
+			item.Resources["MenuFlyoutItemForegroundPointerOver"] = textBrush;
+			item.Resources["MenuFlyoutItemForegroundPressed"] = textBrush;
+			item.Resources["MenuFlyoutItemRevealBackgroundPointerOver"] = hoverBackgroundBrush;
+			item.Resources["MenuFlyoutItemRevealBackgroundPressed"] = hoverBackgroundBrush;
+
+			if (!includeSubMenuStateResources)
+			{
+				return;
+			}
+
+			item.Resources["MenuFlyoutSubItemBackgroundPointerOver"] = hoverBackgroundBrush;
+			item.Resources["MenuFlyoutSubItemBackgroundPressed"] = hoverBackgroundBrush;
+			item.Resources["MenuFlyoutSubItemBackgroundSubMenuOpened"] = hoverBackgroundBrush;
+			item.Resources["MenuFlyoutSubItemForegroundPointerOver"] = textBrush;
+			item.Resources["MenuFlyoutSubItemForegroundPressed"] = textBrush;
+			item.Resources["MenuFlyoutSubItemForegroundSubMenuOpened"] = textBrush;
+			item.Resources["MenuFlyoutSubItemChevronPointerOver"] = chevronBrush;
+			item.Resources["MenuFlyoutSubItemChevronPressed"] = chevronBrush;
+			item.Resources["MenuFlyoutSubItemChevronSubMenuOpened"] = chevronBrush;
+			item.Resources["MenuFlyoutSubItemRevealBackgroundPointerOver"] = hoverBackgroundBrush;
+			item.Resources["MenuFlyoutSubItemRevealBackgroundPressed"] = hoverBackgroundBrush;
+			item.Resources["MenuFlyoutSubItemRevealBackgroundSubMenuOpened"] = hoverBackgroundBrush;
 		}
 
 		private static Brush CreateContextMenuBackgroundBrush()
 		{
-			var topBarBrush = ResolveThemeBrush("ShellTopBarBrush");
-
-			if (topBarBrush is SolidColorBrush solidBrush)
+			var darkTheme = IsDarkTheme();
+			return new AcrylicBrush
 			{
-				return new SolidColorBrush(solidBrush.Color);
-			}
-
-			return topBarBrush;
+				FallbackColor = darkTheme
+					? Windows.UI.Color.FromArgb(255, 27, 31, 37)
+					: Windows.UI.Color.FromArgb(255, 247, 248, 250),
+				TintColor = darkTheme
+					? Windows.UI.Color.FromArgb(255, 27, 31, 37)
+					: Windows.UI.Color.FromArgb(255, 247, 248, 250),
+				TintOpacity = darkTheme ? 0.84 : 0.88,
+				TintLuminosityOpacity = darkTheme ? 0.78 : 0.94
+			};
 		}
 
 		private static Brush CreateContextMenuBorderBrush()

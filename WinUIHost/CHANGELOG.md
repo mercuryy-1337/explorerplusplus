@@ -2,6 +2,23 @@
 
 This changelog tracks the WinUI host line separately from the upstream Explorer++ history.
 
+## 1.1.0.2 - 2026-04-27
+
+### Fixed
+
+- Fixed the folder-pane Properties action so it invokes the Windows shell properties sheet reliably.
+- Fixed submenu trigger styling so pressed and submenu-opened states now match the hover highlight instead of switching to a different color.
+- Fixed context-menu highlight styling so item hover backgrounds use rounded corners that match the rest of the app.
+- Fixed the custom context-menu surface so it uses a proper frosted acrylic background again instead of a flat semi-transparent fill.
+
+### Changed
+
+- Adjusted submenu trigger interaction so nested options behave more like hover-driven Explorer menus instead of latching onto click focus.
+
+### Packaging
+
+- Updated the WinUI host version from 1.1.0.1 to 1.1.0.2.
+
 ## 1.1.0.1 - 2026-04-27
 
 ### Added

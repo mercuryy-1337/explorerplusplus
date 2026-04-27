@@ -17,6 +17,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
@@ -544,16 +545,21 @@ namespace ExplorerPlusPlus.WinUIHost
 			return candidatePath;
 		}
 
-		private static void ShowFolderProperties(string folderPath)
+		private void ShowFolderProperties(string folderPath)
 		{
 			try
 			{
-				Process.Start(new ProcessStartInfo
+				var executeInfo = new ShellExecuteInfo
 				{
-					FileName = folderPath,
-					UseShellExecute = true,
-					Verb = "properties"
-				});
+					cbSize = Marshal.SizeOf<ShellExecuteInfo>(),
+					fMask = SeeMaskInvokeIdList | SeeMaskFlagNoUi,
+					hwnd = WindowNative.GetWindowHandle(this),
+					lpVerb = "properties",
+					lpFile = folderPath,
+					nShow = SwShownormal
+				};
+
+				ShellExecuteEx(ref executeInfo);
 			}
 			catch
 			{
@@ -596,6 +602,33 @@ namespace ExplorerPlusPlus.WinUIHost
 			{
 				ViewModel.ActivateFileItemCommand.Execute(item);
 			}
+		}
+
+		private const uint SeeMaskInvokeIdList = 0x0000000C;
+		private const uint SeeMaskFlagNoUi = 0x00000400;
+		private const int SwShownormal = 1;
+
+		[DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+		private static extern bool ShellExecuteEx(ref ShellExecuteInfo executeInfo);
+
+		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+		private struct ShellExecuteInfo
+		{
+			public int cbSize;
+			public uint fMask;
+			public IntPtr hwnd;
+			public string? lpVerb;
+			public string? lpFile;
+			public string? lpParameters;
+			public string? lpDirectory;
+			public int nShow;
+			public IntPtr hInstApp;
+			public IntPtr lpIDList;
+			public string? lpClass;
+			public IntPtr hkeyClass;
+			public uint dwHotKey;
+			public IntPtr hIconOrMonitor;
+			public IntPtr hProcess;
 		}
 	}
 }
