@@ -11,6 +11,9 @@ param(
 $repo = $PSScriptRoot
 $solutionDir = Join-Path $repo "Explorer++"
 $projectPath = Join-Path $solutionDir $ProjectRelativePath
+$vcpkgRoot = Join-Path $solutionDir "ThirdParty\vcpkg"
+$vcpkgExecutable = Join-Path $vcpkgRoot "vcpkg.exe"
+$vcpkgBootstrapScript = Join-Path $vcpkgRoot "bootstrap-vcpkg.bat"
 $releaseDir = Join-Path $repo "release"
 $winUiProjectPath = Join-Path $repo "WinUIHost\ExplorerPlusPlus.WinUIHost.csproj"
 $winUiReleaseDir = Join-Path $releaseDir "WinUIHost"
@@ -22,6 +25,35 @@ $winUiExecutableNames = @("ExplorerPlusPlus.WinUIHost.exe", "ExplorerX.exe", "ex
 if (-not (Test-Path $projectPath))
 {
 	throw "Project file not found: $projectPath"
+}
+
+if (-not (Test-Path $vcpkgExecutable))
+{
+	if (-not (Test-Path $vcpkgBootstrapScript))
+	{
+		throw "vcpkg bootstrap script not found: $vcpkgBootstrapScript"
+	}
+
+	Write-Host "Bootstrapping vcpkg because vcpkg.exe was not found..."
+	Push-Location $vcpkgRoot
+	try
+	{
+		& $vcpkgBootstrapScript -disableMetrics
+
+		if ($LASTEXITCODE -ne 0)
+		{
+			exit $LASTEXITCODE
+		}
+	}
+	finally
+	{
+		Pop-Location
+	}
+
+	if (-not (Test-Path $vcpkgExecutable))
+	{
+		throw "vcpkg bootstrap completed, but vcpkg.exe was still not found: $vcpkgExecutable"
+	}
 }
 
 $msbuildPath = $null
