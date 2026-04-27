@@ -3,62 +3,94 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Explorer++ WinUI Host">
-    <Grid x:Name="RootLayout" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Padding="16">
+    <Grid x:Name="RootLayout" Background="{StaticResource ShellBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <ItemsControl Grid.Row="0" ItemsSource="{Binding Tabs}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <StackPanel Orientation="Horizontal" />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <Border Margin="0,0,8,0" Padding="10,6" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-                        <TextBlock Text="{Binding Title}" />
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <Grid Grid.Row="0" Margin="16,16,16,0">
+            <ItemsControl ItemsSource="{Binding Tabs}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,0,8,0" Padding="14,8" Background="{StaticResource ShellSurfaceBrush}" BorderBrush="{StaticResource ShellBorderBrush}" BorderThickness="1" CornerRadius="8,8,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{StaticResource ShellSecondaryTextBrush}" />
+                                <TextBlock Text="{Binding Title}" Foreground="{StaticResource ShellTextBrush}" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
 
-        <StackPanel Grid.Row="1" Margin="0,12,0,12" Orientation="Horizontal" Spacing="8">
-            <Button Content="Back" Command="{Binding GoBackCommand}" IsEnabled="{Binding Navigation.CanGoBack}" />
-            <Button Content="Forward" Command="{Binding GoForwardCommand}" IsEnabled="{Binding Navigation.CanGoForward}" />
-            <Button Content="Up" Command="{Binding GoUpCommand}" IsEnabled="{Binding Navigation.CanGoUp}" />
-            <Button Content="Refresh" Command="{Binding RefreshCommand}" IsEnabled="{Binding Navigation.CanRefresh}" />
-            <TextBox Width="480" Text="{Binding Navigation.CurrentPath}" IsReadOnly="True" />
-        </StackPanel>
+        <Border Grid.Row="1" Margin="16,0,16,0" Padding="12" Background="{StaticResource ShellSurfaceBrush}" BorderBrush="{StaticResource ShellBorderBrush}" BorderThickness="1">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
 
-        <Grid Grid.Row="2" ColumnSpacing="12">
+                <Button Grid.Column="0" Command="{Binding GoBackCommand}" IsEnabled="{Binding Navigation.CanGoBack}">
+                    <FontIcon Glyph="&#xE72B;" FontFamily="Segoe Fluent Icons" />
+                </Button>
+                <Button Grid.Column="1" Command="{Binding GoForwardCommand}" IsEnabled="{Binding Navigation.CanGoForward}">
+                    <FontIcon Glyph="&#xE72A;" FontFamily="Segoe Fluent Icons" />
+                </Button>
+                <Button Grid.Column="2" Command="{Binding GoUpCommand}" IsEnabled="{Binding Navigation.CanGoUp}">
+                    <FontIcon Glyph="&#xE74A;" FontFamily="Segoe Fluent Icons" />
+                </Button>
+                <Button Grid.Column="3" Command="{Binding RefreshCommand}" IsEnabled="{Binding Navigation.CanRefresh}">
+                    <FontIcon Glyph="&#xE72C;" FontFamily="Segoe Fluent Icons" />
+                </Button>
+
+                <Border Grid.Column="4" Background="{StaticResource ShellBackgroundBrush}" BorderBrush="{StaticResource ShellBorderBrush}" BorderThickness="1" CornerRadius="8">
+                    <TextBox Background="Transparent" BorderThickness="0" IsReadOnly="True" Text="{Binding Navigation.CurrentPath}" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" Margin="16,0,16,16" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="280" />
+                <ColumnDefinition Width="300" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Padding="8,10,8,10" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+            <Border Grid.Column="0" Margin="0,16,0,0" Background="{StaticResource ShellSidebarBrush}" BorderBrush="{StaticResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
                 <Grid>
-                    <ListView x:Name="FoldersPaneListView" ItemsSource="{Binding FolderPane}" SelectedItem="{Binding SelectedFolder, Mode=TwoWay}" BorderThickness="0" Background="Transparent" IsItemClickEnabled="True" ItemClick="FoldersPaneListView_ItemClick" SelectionChanged="FoldersPaneListView_SelectionChanged" SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Margin="16,16,16,8" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ShellSecondaryTextBrush}" Text="Folders" TextWrapping="Wrap" />
+
+                    <ListView x:Name="FoldersPaneListView" Grid.Row="1" Margin="8,0,8,8" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FoldersPaneListView_ItemClick" ItemsSource="{Binding FolderPane}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectedItem="{Binding SelectedFolder, Mode=TwoWay}" SelectionChanged="FoldersPaneListView_SelectionChanged" SelectionMode="Single">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Grid Height="36">
-                                    <Border Margin="0,0,4,0" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="8" Opacity="{Binding SelectedBackgroundOpacity}" />
-                                    <Border Width="3" Margin="0,6,0,6" HorizontalAlignment="Left" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="0,2,2,0" Opacity="{Binding SelectionBarOpacity}" />
-                                    <Grid Margin="{Binding IndentMargin}">
+                                <Grid Height="34">
+                                    <Border Margin="4,1" Background="{StaticResource ShellSelectionBrush}" CornerRadius="8" Opacity="{Binding SelectedBackgroundOpacity}" />
+                                    <Grid Margin="10,0" VerticalAlignment="Center">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="20" />
-                                            <ColumnDefinition Width="22" />
+                                            <ColumnDefinition Width="5" />
+                                            <ColumnDefinition Width="18" />
+                                            <ColumnDefinition Width="18" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
 
-                                        <FontIcon Grid.Column="0" Glyph="{Binding ExpandIndicator}" FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="{Binding ChevronOpacity}" />
-
-                                        <FontIcon Grid.Column="1" Glyph="{Binding Glyph}" FontSize="14" VerticalAlignment="Center" />
-
-                                        <TextBlock Grid.Column="2" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        <Border Grid.Column="0" Width="3" Height="16" Background="{StaticResource ShellAccentBrush}" CornerRadius="2" HorizontalAlignment="Left" Opacity="{Binding SelectionBarOpacity}" VerticalAlignment="Center" />
+                                        <FontIcon Grid.Column="1" Glyph="{Binding ExpandIndicator}" FontFamily="Segoe Fluent Icons" FontSize="10" Foreground="{StaticResource ShellSecondaryTextBrush}" HorizontalAlignment="Center" Opacity="{Binding ChevronOpacity}" VerticalAlignment="Center" />
+                                        <FontIcon Grid.Column="2" Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{StaticResource ShellTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="3" Margin="8,0,0,0" Foreground="{StaticResource ShellTextBrush}" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                     </Grid>
                                 </Grid>
                             </DataTemplate>
@@ -67,31 +99,50 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1" Padding="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="File list" FontSize="18" FontWeight="SemiBold" />
-                    <TextBlock Margin="0,4,0,12" Text="Live filesystem-backed browsing scaffold for the first host shell." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                    <ListView x:Name="FilesListView" ItemsSource="{Binding Files}" BorderThickness="0" Background="Transparent" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick">
+            <Border Grid.Column="1" Margin="0,16,0,0" Background="{StaticResource ShellSurfaceBrush}" BorderBrush="{StaticResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Margin="16,16,16,8" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="180" />
+                            <ColumnDefinition Width="160" />
+                            <ColumnDefinition Width="120" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource ShellSecondaryTextBrush}" Text="Name" />
+                        <TextBlock Grid.Column="1" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource ShellSecondaryTextBrush}" Text="Type" />
+                        <TextBlock Grid.Column="2" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource ShellSecondaryTextBrush}" Text="Modified" />
+                        <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource ShellSecondaryTextBrush}" Text="Size" />
+                    </Grid>
+
+                    <ListView x:Name="FilesListView" Grid.Row="1" Margin="8,0,8,8" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick" ItemsSource="{Binding Files}">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Grid Padding="0,8" ColumnSpacing="12">
+                                <Grid Margin="8,2" Padding="8,8" ColumnSpacing="12">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="120" />
                                     </Grid.ColumnDefinitions>
 
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                        <FontIcon Glyph="{Binding Glyph}" FontSize="14" VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{StaticResource ShellTextBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Foreground="{StaticResource ShellTextBrush}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                     </StackPanel>
-                                    <TextBlock Grid.Column="1" Text="{Binding ItemType}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Text="{Binding Size}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Foreground="{StaticResource ShellSecondaryTextBrush}" Text="{Binding ItemType}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Foreground="{StaticResource ShellSecondaryTextBrush}" Text="{Binding Modified}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="3" Foreground="{StaticResource ShellSecondaryTextBrush}" HorizontalAlignment="Right" Text="{Binding Size}" VerticalAlignment="Center" />
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
-                </StackPanel>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

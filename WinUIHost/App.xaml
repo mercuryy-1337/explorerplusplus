@@ -3,6 +3,15 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
-        <ResourceDictionary />
+        <ResourceDictionary>
+            <SolidColorBrush x:Key="ShellBackgroundBrush" Color="#F5F6F8" />
+            <SolidColorBrush x:Key="ShellSurfaceBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="ShellSidebarBrush" Color="#F7F7F8" />
+            <SolidColorBrush x:Key="ShellBorderBrush" Color="#E6E7EA" />
+            <SolidColorBrush x:Key="ShellTextBrush" Color="#17181A" />
+            <SolidColorBrush x:Key="ShellSecondaryTextBrush" Color="#61656F" />
+            <SolidColorBrush x:Key="ShellSelectionBrush" Color="#E8F1FE" />
+            <SolidColorBrush x:Key="ShellAccentBrush" Color="#0A64D6" />
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

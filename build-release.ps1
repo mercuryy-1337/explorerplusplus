@@ -1,13 +1,17 @@
 param(
 	[string]$ProjectRelativePath = "Explorer++\Explorer++.vcxproj",
 	[string]$Configuration = "Release",
-	[string]$Platform = "x64"
+	[string]$Platform = "x64",
+	[bool]$BuildWinUIHost = $true
 )
 
 $repo = $PSScriptRoot
 $solutionDir = Join-Path $repo "Explorer++"
 $projectPath = Join-Path $solutionDir $ProjectRelativePath
 $releaseDir = Join-Path $repo "release"
+$winUiProjectPath = Join-Path $repo "WinUIHost\ExplorerPlusPlus.WinUIHost.csproj"
+$winUiReleaseDir = Join-Path $releaseDir "WinUIHost"
+$winUiBuildOutputDir = Join-Path $repo "WinUIHost\bin\$Platform\$Configuration\net8.0-windows10.0.22621.0\win-$Platform"
 
 if (-not (Test-Path $projectPath))
 {
@@ -54,4 +58,44 @@ if (-not $msbuildPath)
 }
 
 & $msbuildPath $projectPath /p:Configuration=$Configuration /p:Platform=$Platform /p:SolutionDir="$solutionDir\\" /p:OutDir="$releaseDir\\" /t:Build /m /nologo /v:minimal
-exit $LASTEXITCODE
+
+if ($LASTEXITCODE -ne 0)
+{
+	exit $LASTEXITCODE
+}
+
+if ($BuildWinUIHost)
+{
+	if (-not (Test-Path $winUiProjectPath))
+	{
+		throw "WinUI host project file not found: $winUiProjectPath"
+	}
+
+	$null = New-Item -ItemType Directory -Path $winUiReleaseDir -Force
+
+	Push-Location $repo
+	try
+	{
+		dotnet build $winUiProjectPath -c $Configuration -p:Platform=$Platform /nologo
+
+		if ($LASTEXITCODE -ne 0)
+		{
+			exit $LASTEXITCODE
+		}
+
+		if (-not (Test-Path $winUiBuildOutputDir))
+		{
+			throw "WinUI host build output directory not found: $winUiBuildOutputDir"
+		}
+
+		Get-ChildItem $winUiReleaseDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+		Copy-Item (Join-Path $winUiBuildOutputDir "*") $winUiReleaseDir -Recurse -Force
+		Remove-Item (Join-Path $winUiReleaseDir "startup.log") -Force -ErrorAction SilentlyContinue
+	}
+	finally
+	{
+		Pop-Location
+	}
+}
+
+exit 0
