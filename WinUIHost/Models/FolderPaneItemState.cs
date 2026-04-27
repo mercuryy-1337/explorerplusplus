@@ -1,5 +1,6 @@
 using ExplorerPlusPlus.WinUIHost.Infrastructure;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 
 namespace ExplorerPlusPlus.WinUIHost.Models
 {
@@ -8,6 +9,7 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		private string m_title = string.Empty;
 		private string m_glyph = string.Empty;
 		private string m_activationPath = string.Empty;
+		private ImageSource? m_iconSource;
 		private bool m_isHeader;
 		private bool m_canExpand;
 		private bool m_isExpanded;
@@ -30,6 +32,19 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		{
 			get => m_activationPath;
 			set => SetProperty(ref m_activationPath, value);
+		}
+
+		public ImageSource? IconSource
+		{
+			get => m_iconSource;
+			set
+			{
+				if (SetProperty(ref m_iconSource, value))
+				{
+					OnPropertyChanged(nameof(NativeIconOpacity));
+					OnPropertyChanged(nameof(GlyphOpacity));
+				}
+			}
 		}
 
 		public bool IsHeader
@@ -111,5 +126,7 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		public Visibility HeaderVisibility => IsHeader ? Visibility.Visible : Visibility.Collapsed;
 		public Visibility RowVisibility => IsHeader ? Visibility.Collapsed : Visibility.Visible;
 		public Thickness IndentMargin => new Thickness(12 + (Depth * 18), 0, 10, 0);
+		public double NativeIconOpacity => IconSource == null ? 0.0 : 1.0;
+		public double GlyphOpacity => IconSource == null ? 1.0 : 0.0;
 	}
 }

@@ -2,7 +2,9 @@ param(
 	[string]$ProjectRelativePath = "Explorer++\Explorer++.vcxproj",
 	[string]$Configuration = "Release",
 	[string]$Platform = "x64",
-	[bool]$BuildWinUIHost = $true
+	[bool]$BuildWinUIHost = $true,
+	[bool]$WinUIHostSelfContained = $true,
+	[bool]$WinUIHostSingleFile = $false
 )
 
 $repo = $PSScriptRoot
@@ -12,6 +14,7 @@ $releaseDir = Join-Path $repo "release"
 $winUiProjectPath = Join-Path $repo "WinUIHost\ExplorerPlusPlus.WinUIHost.csproj"
 $winUiReleaseDir = Join-Path $releaseDir "WinUIHost"
 $winUiRuntimeIdentifier = "win-$Platform"
+$winUiBuildOutputDir = Join-Path $repo "WinUIHost\bin\$Platform\$Configuration\net8.0-windows10.0.22621.0\$winUiRuntimeIdentifier"
 
 if (-not (Test-Path $projectPath))
 {
@@ -77,12 +80,47 @@ if ($BuildWinUIHost)
 	try
 	{
 		Get-ChildItem $winUiReleaseDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-		dotnet publish $winUiProjectPath -c $Configuration -r $winUiRuntimeIdentifier -o $winUiReleaseDir -p:Platform=$Platform -p:SelfContained=true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true -p:WindowsAppSDKSelfContained=true -p:EnableMsixTooling=true /nologo
+
+		$publishArguments = @(
+			"publish",
+			$winUiProjectPath,
+			"-c",
+			$Configuration,
+			"-r",
+			$winUiRuntimeIdentifier,
+			"-o",
+			$winUiReleaseDir,
+			"-p:Platform=$Platform",
+			"-p:SelfContained=$WinUIHostSelfContained",
+			"-p:WindowsAppSDKSelfContained=$WinUIHostSelfContained",
+			"-p:PublishSingleFile=$WinUIHostSingleFile",
+			"/nologo"
+		)
+
+		if ($WinUIHostSingleFile)
+		{
+			$publishArguments += "-p:IncludeAllContentForSelfExtract=true"
+			$publishArguments += "-p:EnableMsixTooling=true"
+		}
+
+		dotnet @publishArguments
 
 		if ($LASTEXITCODE -ne 0)
 		{
 			exit $LASTEXITCODE
 		}
+
+		if (-not $WinUIHostSingleFile)
+		{
+			if (-not (Test-Path $winUiBuildOutputDir))
+			{
+				throw "WinUI host build output directory not found: $winUiBuildOutputDir"
+			}
+
+			Copy-Item (Join-Path $winUiBuildOutputDir "*.xbf") $winUiReleaseDir -Force
+			Copy-Item (Join-Path $winUiBuildOutputDir "ExplorerPlusPlus.WinUIHost.pri") $winUiReleaseDir -Force
+		}
+
 		Remove-Item (Join-Path $winUiReleaseDir "startup.log") -Force -ErrorAction SilentlyContinue
 	}
 	finally

@@ -30,7 +30,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private TabState? m_selectedTab;
 		private FolderPaneItemState? m_selectedFolder;
-		private string m_currentActivationPath = ThisPcActivationPath;
+		private string m_currentActivationPath = HomeActivationPath;
 		private string? m_selectedFolderActivationPath;
 
 		public ObservableCollection<TabState> Tabs { get; }
@@ -75,8 +75,9 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			m_toggleFolderExpansionCommand = new RelayCommand<FolderPaneItemState>(ToggleFolderExpansion);
 			m_activateFileItemCommand = new RelayCommand<FileItemState>(ActivateFileItem);
 
-			m_expandedPaths.Add(ThisPcActivationPath);
-			NavigateTo(ThisPcActivationPath, false);
+			InitializeFolderPane();
+			m_selectedFolderActivationPath = m_currentActivationPath;
+			RefreshState(false);
 		}
 
 		private static IEnumerable<(string Title, string ActivationPath, string Glyph)> BuildPinnedLocationDefinitions()
@@ -176,7 +177,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private void Refresh()
 		{
-			RefreshState();
+			RefreshState(true);
 		}
 
 		private void SelectFolder(FolderPaneItemState? folder)
@@ -197,7 +198,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				return;
 			}
 
-			NavigateTo(folder.ActivationPath, true);
+			NavigateTo(folder.ActivationPath, true, false);
 		}
 
 		private void ToggleFolderExpansion(FolderPaneItemState? folder)
@@ -207,13 +208,18 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				return;
 			}
 
-			if (!m_expandedPaths.Remove(folder.ActivationPath))
+			m_selectedFolderActivationPath = folder.ActivationPath;
+
+			if (folder.IsExpanded)
 			{
-				m_expandedPaths.Add(folder.ActivationPath);
+				CollapseFolderInPane(folder);
+			}
+			else
+			{
+				ExpandFolderInPane(folder);
 			}
 
-			m_selectedFolderActivationPath = folder.ActivationPath;
-			RefreshFoldersPane();
+			ApplyFolderSelectionState();
 		}
 
 		private void ActivateFileItem(FileItemState? item)
@@ -245,7 +251,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			}
 		}
 
-		private void NavigateTo(string activationPath, bool recordHistory)
+		private void NavigateTo(string activationPath, bool recordHistory, bool refreshFolderPane = true)
 		{
 			var normalizedActivationPath = NormalizeActivationPath(activationPath);
 
@@ -258,15 +264,21 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			m_currentActivationPath = normalizedActivationPath;
 			m_selectedFolderActivationPath = normalizedActivationPath;
 			EnsureCurrentPathExpanded(normalizedActivationPath);
-			RefreshState();
+			RefreshState(refreshFolderPane);
 		}
 
-		private void RefreshState()
+		private void RefreshState(bool refreshFolderPane)
 		{
 			Navigation.IsNavigating = false;
+
+			if (refreshFolderPane)
+			{
+				RefreshFoldersPane();
+			}
+
 			RefreshTabs();
 			RefreshNavigation();
-			RefreshFoldersPane();
+			ApplyFolderSelectionState();
 			RefreshFiles();
 			NotifyCommandStateChanged();
 		}
@@ -296,75 +308,9 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private void RefreshFoldersPane()
 		{
-			var items = new List<FolderPaneItemState>();
-			var quickAccessLocations = BuildKnownFolderDefinitions().ToList();
-
-			items.Add(new FolderPaneItemState
-			{
-				Title = "Home",
-				Glyph = "\uE80F",
-				ActivationPath = HomeActivationPath,
-				CanExpand = false,
-				IsExpanded = false,
-				Depth = 0
-			});
-
-			if (quickAccessLocations.Count > 0)
-			{
-				items.Add(new FolderPaneItemState
-				{
-					Title = "Quick access",
-					IsHeader = true
-				});
-
-				foreach (var pinnedLocation in quickAccessLocations)
-				{
-					items.Add(new FolderPaneItemState
-					{
-						Title = pinnedLocation.Title,
-						Glyph = pinnedLocation.Glyph,
-						ActivationPath = pinnedLocation.ActivationPath,
-						CanExpand = false,
-						IsExpanded = false,
-						Depth = 0
-					});
-				}
-			}
-
-			items.Add(new FolderPaneItemState
-			{
-				Title = "Devices and drives",
-				IsHeader = true
-			});
-
-			var thisPcItem = new FolderPaneItemState
-			{
-				Title = "This PC",
-				Glyph = "\uE7F8",
-				ActivationPath = ThisPcActivationPath,
-				CanExpand = true,
-				IsExpanded = m_expandedPaths.Contains(ThisPcActivationPath) || IsThisPcBranch(m_currentActivationPath),
-				Depth = 0
-			};
-
-			items.Add(thisPcItem);
-
-			if (thisPcItem.IsExpanded)
-			{
-				foreach (var drive in GetSortedDrives())
-				{
-					AddDirectoryTree(items, drive.RootDirectory.FullName, BuildDriveTitle(drive), "\uEDA2", 1);
-				}
-			}
-
 			FolderPane.Clear();
-
-			foreach (var item in items)
-			{
-				FolderPane.Add(item);
-			}
-
-			ApplyFolderSelectionState();
+			InitializeFolderPane();
+			EnsureFolderPaneVisibleForPath(m_currentActivationPath);
 		}
 
 		private void ApplyFolderSelectionState()
@@ -403,6 +349,8 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private IEnumerable<FileItemState> BuildFileItemsForCurrentLocation()
 		{
+			var omitSlowMetadata = IsSlowFileSystemLocation(m_currentActivationPath);
+
 			if (IsHomeLocation(m_currentActivationPath))
 			{
 				foreach (var pinnedLocation in BuildPinnedLocationDefinitions())
@@ -416,6 +364,9 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 					{
 						Name = pinnedLocation.Title,
 						Glyph = pinnedLocation.Glyph,
+						IconSource = IsFileSystemPath(pinnedLocation.ActivationPath)
+							? ShellIconCache.GetFolderIcon(pinnedLocation.ActivationPath)
+							: null,
 						ItemType = "Folder",
 						ActivationPath = pinnedLocation.ActivationPath,
 						IsFolder = true
@@ -442,6 +393,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 					{
 						Name = BuildDriveTitle(drive),
 						Glyph = "\uEDA2",
+						IconSource = ShellIconCache.GetDriveIcon(drive.RootDirectory.FullName),
 						ItemType = BuildDriveTypeLabel(drive),
 						Modified = string.Empty,
 						Size = BuildDriveCapacityLabel(drive),
@@ -464,8 +416,9 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				{
 					Name = GetFileSystemDisplayName(directory),
 					Glyph = "\uE8B7",
+					IconSource = ShellIconCache.GetFolderIcon(directory),
 					ItemType = "Folder",
-					Modified = FormatTimestamp(GetDirectoryWriteTime(directory)),
+					Modified = string.Empty,
 					Size = string.Empty,
 					ActivationPath = NormalizeFileSystemPath(directory),
 					IsFolder = true
@@ -478,44 +431,236 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				{
 					Name = Path.GetFileName(file),
 					Glyph = "\uE8A5",
+					IconSource = ShellIconCache.GetFileIcon(file),
 					ItemType = BuildFileTypeLabel(file),
-					Modified = FormatTimestamp(GetFileWriteTime(file)),
-					Size = FormatFileSize(GetFileSize(file)),
+					Modified = omitSlowMetadata ? string.Empty : FormatTimestamp(GetFileWriteTime(file)),
+					Size = omitSlowMetadata ? string.Empty : FormatFileSize(GetFileSize(file)),
 					ActivationPath = file,
 					IsFolder = false
 				};
 			}
 		}
 
-		private void AddDirectoryTree(ICollection<FolderPaneItemState> items, string directoryPath,
-			string title, string glyph, int depth)
+		private void InitializeFolderPane()
 		{
-			var normalizedPath = NormalizeFileSystemPath(directoryPath);
-			var isCurrentBranch = IsFileSystemBranch(m_currentActivationPath, normalizedPath);
-			var canExpand = HasChildDirectories(normalizedPath) || isCurrentBranch;
-			var isExpanded = canExpand && (m_expandedPaths.Contains(normalizedPath) || isCurrentBranch);
-
-			var item = new FolderPaneItemState
+			FolderPane.Add(new FolderPaneItemState
 			{
-				Title = title,
-				Glyph = glyph,
-				ActivationPath = normalizedPath,
-				CanExpand = canExpand,
-				IsExpanded = isExpanded,
-				Depth = depth
-			};
+				Title = "Home",
+				Glyph = "\uE80F",
+				ActivationPath = HomeActivationPath,
+				CanExpand = false,
+				IsExpanded = false,
+				Depth = 0
+			});
 
-			items.Add(item);
+			var quickAccessLocations = BuildKnownFolderDefinitions().ToList();
 
-			if (!isExpanded)
+			if (quickAccessLocations.Count > 0)
+			{
+				FolderPane.Add(new FolderPaneItemState
+				{
+					Title = "Quick access",
+					IsHeader = true
+				});
+
+				foreach (var pinnedLocation in quickAccessLocations)
+				{
+					FolderPane.Add(new FolderPaneItemState
+					{
+						Title = pinnedLocation.Title,
+						Glyph = pinnedLocation.Glyph,
+						ActivationPath = pinnedLocation.ActivationPath,
+						IconSource = IsFileSystemPath(pinnedLocation.ActivationPath)
+							? ShellIconCache.GetFolderIcon(pinnedLocation.ActivationPath)
+							: null,
+						CanExpand = false,
+						IsExpanded = false,
+						Depth = 0
+					});
+				}
+			}
+
+			FolderPane.Add(new FolderPaneItemState
+			{
+				Title = "Devices and drives",
+				IsHeader = true
+			});
+
+			FolderPane.Add(new FolderPaneItemState
+			{
+				Title = "This PC",
+				Glyph = "\uE7F8",
+				ActivationPath = ThisPcActivationPath,
+				CanExpand = true,
+				IsExpanded = false,
+				Depth = 0
+			});
+		}
+
+		private void EnsureFolderPaneVisibleForPath(string activationPath)
+		{
+			if (IsHomeLocation(activationPath))
 			{
 				return;
 			}
 
-			foreach (var childDirectory in EnumerateDirectoriesSafe(normalizedPath))
+			if (IsThisPcLocation(activationPath))
 			{
-				AddDirectoryTree(items, childDirectory, GetFileSystemDisplayName(childDirectory),
-					"\uE8B7", depth + 1);
+				return;
+			}
+
+			if (!IsFileSystemPath(activationPath))
+			{
+				return;
+			}
+
+			var thisPcItem = FindFolderPaneItem(ThisPcActivationPath);
+
+			if (thisPcItem == null)
+			{
+				return;
+			}
+
+			ExpandFolderInPane(thisPcItem);
+
+			var ancestors = new Stack<string>();
+			var currentPath = NormalizeFileSystemPath(activationPath);
+
+			while (!string.IsNullOrEmpty(currentPath))
+			{
+				ancestors.Push(currentPath);
+				var parentPath = GetParentDirectoryPath(currentPath);
+
+				if (parentPath == null)
+				{
+					break;
+				}
+
+				currentPath = parentPath;
+			}
+
+			FolderPaneItemState? parentItem = thisPcItem;
+
+			while (ancestors.Count > 0)
+			{
+				var path = ancestors.Pop();
+				var pathItem = FindFolderPaneItem(path);
+
+				if (pathItem == null && parentItem != null)
+				{
+					ExpandFolderInPane(parentItem);
+					pathItem = FindFolderPaneItem(path);
+				}
+
+				if (pathItem == null)
+				{
+					break;
+				}
+
+				if (ancestors.Count > 0)
+				{
+					ExpandFolderInPane(pathItem);
+				}
+
+				parentItem = pathItem;
+			}
+		}
+
+		private FolderPaneItemState? FindFolderPaneItem(string activationPath)
+		{
+			return FolderPane.FirstOrDefault(item => !item.IsHeader && PathsEqual(item.ActivationPath, activationPath));
+		}
+
+		private void ExpandFolderInPane(FolderPaneItemState folder)
+		{
+			if (folder.IsExpanded)
+			{
+				m_expandedPaths.Add(folder.ActivationPath);
+				return;
+			}
+
+			var childItems = BuildChildFolderItems(folder).ToList();
+
+			if (childItems.Count == 0)
+			{
+				folder.CanExpand = false;
+				folder.IsExpanded = false;
+				m_expandedPaths.Remove(folder.ActivationPath);
+				return;
+			}
+
+			var insertIndex = FolderPane.IndexOf(folder) + 1;
+
+			foreach (var child in childItems)
+			{
+				FolderPane.Insert(insertIndex++, child);
+			}
+
+			folder.IsExpanded = true;
+			m_expandedPaths.Add(folder.ActivationPath);
+		}
+
+		private void CollapseFolderInPane(FolderPaneItemState folder)
+		{
+			var folderIndex = FolderPane.IndexOf(folder);
+
+			if (folderIndex < 0)
+			{
+				return;
+			}
+
+			folder.IsExpanded = false;
+			m_expandedPaths.Remove(folder.ActivationPath);
+
+			for (int index = folderIndex + 1; index < FolderPane.Count;)
+			{
+				if (FolderPane[index].Depth <= folder.Depth)
+				{
+					break;
+				}
+
+				FolderPane.RemoveAt(index);
+			}
+		}
+
+		private IEnumerable<FolderPaneItemState> BuildChildFolderItems(FolderPaneItemState parent)
+		{
+			if (IsThisPcLocation(parent.ActivationPath))
+			{
+				foreach (var drive in GetSortedDrives())
+				{
+					yield return new FolderPaneItemState
+					{
+						Title = BuildDriveTitle(drive),
+						Glyph = "\uEDA2",
+						ActivationPath = NormalizeFileSystemPath(drive.RootDirectory.FullName),
+						IconSource = ShellIconCache.GetDriveIcon(drive.RootDirectory.FullName),
+						CanExpand = true,
+						IsExpanded = false,
+						Depth = parent.Depth + 1
+					};
+				}
+
+				yield break;
+			}
+
+			if (!IsFileSystemPath(parent.ActivationPath))
+			{
+				yield break;
+			}
+
+			foreach (var childDirectory in EnumerateDirectoriesSafe(parent.ActivationPath))
+			{
+				yield return new FolderPaneItemState
+				{
+					Title = GetFileSystemDisplayName(childDirectory),
+					Glyph = "\uE8B7",
+					ActivationPath = NormalizeFileSystemPath(childDirectory),
+					IconSource = ShellIconCache.GetFolderIcon(childDirectory),
+					CanExpand = true,
+					IsExpanded = false,
+					Depth = parent.Depth + 1
+				};
 			}
 		}
 
@@ -523,7 +668,6 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		{
 			if (IsThisPcLocation(activationPath))
 			{
-				m_expandedPaths.Add(ThisPcActivationPath);
 				return;
 			}
 
@@ -559,7 +703,6 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		private static IEnumerable<DriveInfo> GetSortedDrives()
 		{
 			return DriveInfo.GetDrives()
-				.Where(drive => drive.IsReady)
 				.OrderBy(drive => drive.DriveType == DriveType.Fixed ? 0 : 1)
 				.ThenBy(drive => drive.Name, StringComparer.OrdinalIgnoreCase)
 				.ToList();
@@ -643,8 +786,14 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private static string BuildDriveTitle(DriveInfo drive)
 		{
-			var driveLabel = string.IsNullOrWhiteSpace(drive.VolumeLabel) ? "Local Disk" : drive.VolumeLabel;
 			var driveName = TrimTrailingSeparators(drive.Name);
+			var driveLabel = TryGetDriveVolumeLabel(drive);
+
+			if (string.IsNullOrWhiteSpace(driveLabel))
+			{
+				return driveName;
+			}
+
 			return $"{driveLabel} ({driveName[^2..]})";
 		}
 
@@ -661,12 +810,46 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private static string BuildDriveCapacityLabel(DriveInfo drive)
 		{
-			if (!drive.IsReady)
+			if (drive.DriveType == DriveType.Network)
 			{
 				return string.Empty;
 			}
 
-			return $"{FormatFileSize(drive.AvailableFreeSpace)} free of {FormatFileSize(drive.TotalSize)}";
+			try
+			{
+				if (!drive.IsReady)
+				{
+					return string.Empty;
+				}
+
+				return $"{FormatFileSize(drive.AvailableFreeSpace)} free of {FormatFileSize(drive.TotalSize)}";
+			}
+			catch
+			{
+				return string.Empty;
+			}
+		}
+
+		private static string? TryGetDriveVolumeLabel(DriveInfo drive)
+		{
+			if (drive.DriveType == DriveType.Network)
+			{
+				return null;
+			}
+
+			try
+			{
+				if (!drive.IsReady)
+				{
+					return null;
+				}
+
+				return string.IsNullOrWhiteSpace(drive.VolumeLabel) ? "Local Disk" : drive.VolumeLabel;
+			}
+			catch
+			{
+				return null;
+			}
 		}
 
 		private static string BuildFileTypeLabel(string filePath)
@@ -887,6 +1070,30 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			return Directory.GetParent(normalizedPath)?.FullName is string parentPath
 				? NormalizeFileSystemPath(parentPath)
 				: null;
+		}
+
+		private static bool IsSlowFileSystemLocation(string activationPath)
+		{
+			if (!IsFileSystemPath(activationPath))
+			{
+				return false;
+			}
+
+			var root = Path.GetPathRoot(NormalizeFileSystemPath(activationPath));
+
+			if (string.IsNullOrWhiteSpace(root))
+			{
+				return false;
+			}
+
+			try
+			{
+				return new DriveInfo(root).DriveType == DriveType.Network;
+			}
+			catch
+			{
+				return false;
+			}
 		}
 	}
 }
