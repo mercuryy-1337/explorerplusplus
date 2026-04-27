@@ -26,10 +26,10 @@
         </ItemsControl>
 
         <StackPanel Grid.Row="1" Margin="0,12,0,12" Orientation="Horizontal" Spacing="8">
-            <Button Content="Back" IsEnabled="{Binding Navigation.CanGoBack}" />
-            <Button Content="Forward" IsEnabled="{Binding Navigation.CanGoForward}" />
-            <Button Content="Up" IsEnabled="{Binding Navigation.CanGoUp}" />
-            <Button Content="Refresh" IsEnabled="{Binding Navigation.CanRefresh}" />
+            <Button Content="Back" Command="{Binding GoBackCommand}" IsEnabled="{Binding Navigation.CanGoBack}" />
+            <Button Content="Forward" Command="{Binding GoForwardCommand}" IsEnabled="{Binding Navigation.CanGoForward}" />
+            <Button Content="Up" Command="{Binding GoUpCommand}" IsEnabled="{Binding Navigation.CanGoUp}" />
+            <Button Content="Refresh" Command="{Binding RefreshCommand}" IsEnabled="{Binding Navigation.CanRefresh}" />
             <TextBox Width="480" Text="{Binding Navigation.CurrentPath}" IsReadOnly="True" />
         </StackPanel>
 
@@ -39,34 +39,55 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Padding="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="Folders pane" FontSize="18" FontWeight="SemiBold" />
-                    <TextBlock Margin="0,4,0,12" Text="Files-style flat sidebar scaffold." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                    <ListView ItemsSource="{Binding FolderPane}" SelectedItem="{Binding SelectedFolder, Mode=TwoWay}" BorderThickness="0" Background="Transparent">
+            <Border Grid.Column="0" Padding="8,10,8,10" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                <Grid>
+                    <ListView x:Name="FoldersPaneListView" ItemsSource="{Binding FolderPane}" SelectedItem="{Binding SelectedFolder, Mode=TwoWay}" BorderThickness="0" Background="Transparent" IsItemClickEnabled="True" ItemClick="FoldersPaneListView_ItemClick" SelectionChanged="FoldersPaneListView_SelectionChanged" SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Margin="{Binding IndentMargin}" Padding="0,6" Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Width="10" Text="{Binding ExpandIndicator}" />
-                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
+                                <Grid Height="36">
+                                    <Border Margin="0,0,4,0" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="8" Opacity="{Binding SelectedBackgroundOpacity}" />
+                                    <Border Width="3" Margin="0,6,0,6" HorizontalAlignment="Left" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="0,2,2,0" Opacity="{Binding SelectionBarOpacity}" />
+                                    <Grid Margin="{Binding IndentMargin}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="20" />
+                                            <ColumnDefinition Width="22" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <FontIcon Grid.Column="0" Glyph="{Binding ExpandIndicator}" FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="{Binding ChevronOpacity}" />
+
+                                        <FontIcon Grid.Column="1" Glyph="{Binding Glyph}" FontSize="14" VerticalAlignment="Center" />
+
+                                        <TextBlock Grid.Column="2" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
-                </StackPanel>
+                </Grid>
             </Border>
 
             <Border Grid.Column="1" Padding="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                 <StackPanel>
                     <TextBlock Text="File list" FontSize="18" FontWeight="SemiBold" />
-                    <TextBlock Margin="0,4,0,12" Text="Design-time placeholder data for the first host shell." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                    <ListView ItemsSource="{Binding Files}" BorderThickness="0" Background="Transparent">
+                    <TextBlock Margin="0,4,0,12" Text="Live filesystem-backed browsing scaffold for the first host shell." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    <ListView x:Name="FilesListView" ItemsSource="{Binding Files}" BorderThickness="0" Background="Transparent" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Padding="0,6">
-                                    <TextBlock Text="{Binding Name}" />
-                                    <TextBlock Text="{Binding ItemType}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
+                                <Grid Padding="0,8" ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="120" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="{Binding Glyph}" FontSize="14" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding ItemType}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Size}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
