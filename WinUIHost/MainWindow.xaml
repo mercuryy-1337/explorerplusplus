@@ -171,9 +171,9 @@
                                         </Grid.ColumnDefinitions>
 
                                         <Border Grid.Column="0" Width="3" Height="16" Background="{ThemeResource ShellAccentBrush}" CornerRadius="2" HorizontalAlignment="Left" Opacity="{Binding SelectionBarOpacity}" VerticalAlignment="Center" />
-                                        <Grid Grid.Column="1" Width="18" Height="18" DataContext="{Binding}" IsHitTestVisible="{Binding ChevronHitTestVisible}" Opacity="{Binding ChevronOpacity}" Tapped="FolderPaneChevron_Tapped" VerticalAlignment="Center">
+                                        <controls:HoverCursorGrid Grid.Column="1" Width="18" Height="18" DataContext="{Binding}" IsHitTestVisible="{Binding ChevronHitTestVisible}" Opacity="{Binding ChevronOpacity}" Tapped="FolderPaneChevron_Tapped" UseArrowCursor="True" VerticalAlignment="Center">
                                             <FontIcon Glyph="{Binding ExpandIndicator}" FontFamily="Segoe Fluent Icons" FontSize="10" Foreground="{ThemeResource ShellSecondaryTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Grid>
+                                        </controls:HoverCursorGrid>
                                         <Grid Grid.Column="2" Width="16" Height="16" VerticalAlignment="Center">
                                             <Image Width="16" Height="16" Opacity="{Binding NativeIconOpacity}" Source="{Binding IconSource}" Stretch="Uniform" />
                                             <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{ThemeResource ShellTextBrush}" HorizontalAlignment="Center" Opacity="{Binding GlyphOpacity}" VerticalAlignment="Center" />
