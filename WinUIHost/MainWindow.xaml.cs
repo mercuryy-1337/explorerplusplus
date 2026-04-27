@@ -101,6 +101,22 @@ namespace ExplorerPlusPlus.WinUIHost
 			}
 		}
 
+		private void FolderPaneRow_PointerEntered(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is FrameworkElement element && element.DataContext is FolderPaneItemState folder)
+			{
+				folder.IsPointerOver = true;
+			}
+		}
+
+		private void FolderPaneRow_PointerExited(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is FrameworkElement element && element.DataContext is FolderPaneItemState folder)
+			{
+				folder.IsPointerOver = false;
+			}
+		}
+
 		private void FilesListView_ItemClick(object sender, ItemClickEventArgs e)
 		{
 			if (e.ClickedItem is FileItemState item)

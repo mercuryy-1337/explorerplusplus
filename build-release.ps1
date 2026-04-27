@@ -4,7 +4,8 @@ param(
 	[string]$Platform = "x64",
 	[bool]$BuildWinUIHost = $true,
 	[bool]$WinUIHostSelfContained = $true,
-	[bool]$WinUIHostSingleFile = $false
+	[bool]$WinUIHostSingleFile = $false,
+	[bool]$WinUIHostCompressSingleFile = $true
 )
 
 $repo = $PSScriptRoot
@@ -74,6 +75,12 @@ if ($BuildWinUIHost)
 		throw "WinUI host project file not found: $winUiProjectPath"
 	}
 
+	Get-CimInstance Win32_Process -Filter "Name = 'ExplorerPlusPlus.WinUIHost.exe'" -ErrorAction SilentlyContinue |
+		Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($winUiReleaseDir, [System.StringComparison]::OrdinalIgnoreCase) } |
+		ForEach-Object {
+			Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+		}
+
 	$null = New-Item -ItemType Directory -Path $winUiReleaseDir -Force
 
 	Push-Location $repo
@@ -100,6 +107,7 @@ if ($BuildWinUIHost)
 		if ($WinUIHostSingleFile)
 		{
 			$publishArguments += "-p:IncludeAllContentForSelfExtract=true"
+			$publishArguments += "-p:EnableCompressionInSingleFile=$WinUIHostCompressSingleFile"
 			$publishArguments += "-p:EnableMsixTooling=true"
 		}
 

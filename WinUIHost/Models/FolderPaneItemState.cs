@@ -13,6 +13,7 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		private bool m_isHeader;
 		private bool m_canExpand;
 		private bool m_isExpanded;
+		private bool m_isPointerOver;
 		private bool m_isSelected;
 		private int m_depth;
 
@@ -93,6 +94,18 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 			}
 		}
 
+		public bool IsPointerOver
+		{
+			get => m_isPointerOver;
+			set
+			{
+				if (SetProperty(ref m_isPointerOver, value))
+				{
+					OnPropertyChanged(nameof(RowBackgroundOpacity));
+				}
+			}
+		}
+
 		public bool IsSelected
 		{
 			get => m_isSelected;
@@ -100,6 +113,7 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 			{
 				if (SetProperty(ref m_isSelected, value))
 				{
+					OnPropertyChanged(nameof(RowBackgroundOpacity));
 					OnPropertyChanged(nameof(SelectionBarOpacity));
 				}
 			}
@@ -118,6 +132,7 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		}
 
 		public string ExpandIndicator => !CanExpand || IsHeader ? string.Empty : (IsExpanded ? "\uE70D" : "\uE76C");
+		public double RowBackgroundOpacity => IsHeader ? 0.0 : (IsSelected ? 1.0 : (IsPointerOver ? 0.55 : 0.0));
 		public double SelectedBackgroundOpacity => IsSelected && !IsHeader ? 1.0 : 0.0;
 		public double SelectionBarOpacity => IsSelected && !CanExpand && !IsHeader ? 1.0 : 0.0;
 		public double ChevronOpacity => CanExpand && !IsHeader ? 1.0 : 0.0;

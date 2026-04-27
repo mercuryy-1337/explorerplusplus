@@ -19,7 +19,7 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 		private const uint FileAttributeDirectory = 0x00000010;
 		private const uint FileAttributeNormal = 0x00000080;
 
-		private static readonly ConcurrentDictionary<string, ImageSource?> s_iconCache =
+		private static readonly ConcurrentDictionary<string, CachedIcon?> s_iconCache =
 			new(StringComparer.OrdinalIgnoreCase);
 
 		public static ImageSource? GetFolderIcon(string activationPath)
@@ -34,7 +34,7 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 				return GetDriveIcon(activationPath);
 			}
 
-			return s_iconCache.GetOrAdd("folder", _ => CreateGenericDirectoryIcon());
+			return s_iconCache.GetOrAdd("folder", _ => CreateGenericDirectoryIcon())?.ImageSource;
 		}
 
 		public static ImageSource? GetDriveIcon(string activationPath)
@@ -45,7 +45,7 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			}
 
 			var normalizedPath = NormalizePath(activationPath);
-			return s_iconCache.GetOrAdd($"drive:{normalizedPath}", _ => CreatePathIcon(normalizedPath));
+			return s_iconCache.GetOrAdd($"drive:{normalizedPath}", _ => CreatePathIcon(normalizedPath))?.ImageSource;
 		}
 
 		public static ImageSource? GetFileIcon(string filePath)
@@ -59,33 +59,33 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 
 			if (string.IsNullOrWhiteSpace(extension))
 			{
-				return s_iconCache.GetOrAdd("file", _ => CreateGenericFileIcon());
+				return s_iconCache.GetOrAdd("file", _ => CreateGenericFileIcon())?.ImageSource;
 			}
 
-			return s_iconCache.GetOrAdd($"file:{extension}", _ => CreateExtensionIcon(extension));
+			return s_iconCache.GetOrAdd($"file:{extension}", _ => CreateExtensionIcon(extension))?.ImageSource;
 		}
 
-		private static ImageSource? CreateGenericDirectoryIcon()
+		private static CachedIcon? CreateGenericDirectoryIcon()
 		{
 			return CreateIconFromShellInfo("folder", FileAttributeDirectory, ShgfiUseFileAttributes);
 		}
 
-		private static ImageSource? CreateGenericFileIcon()
+		private static CachedIcon? CreateGenericFileIcon()
 		{
 			return CreateIconFromShellInfo("file.txt", FileAttributeNormal, ShgfiUseFileAttributes);
 		}
 
-		private static ImageSource? CreateExtensionIcon(string extension)
+		private static CachedIcon? CreateExtensionIcon(string extension)
 		{
 			return CreateIconFromShellInfo($"placeholder{extension}", FileAttributeNormal, ShgfiUseFileAttributes);
 		}
 
-		private static ImageSource? CreatePathIcon(string path)
+		private static CachedIcon? CreatePathIcon(string path)
 		{
 			return CreateIconFromShellInfo(path, 0, 0);
 		}
 
-		private static ImageSource? CreateIconFromShellInfo(string path, uint fileAttributes, uint extraFlags)
+		private static CachedIcon? CreateIconFromShellInfo(string path, uint fileAttributes, uint extraFlags)
 		{
 			var flags = ShgfiIcon | ShgfiSmallIcon | extraFlags;
 			SHFILEINFOW shellFileInfo = default;
@@ -117,17 +117,25 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			}
 		}
 
-		private static ImageSource? ConvertIconToImageSource(Icon icon)
+		private static CachedIcon? ConvertIconToImageSource(Icon icon)
 		{
 			using var bitmap = icon.ToBitmap();
 			using var stream = new MemoryStream();
 			bitmap.Save(stream, ImageFormat.Png);
-			stream.Position = 0;
+			var bytes = stream.ToArray();
 
-			IRandomAccessStream randomAccessStream = stream.AsRandomAccessStream();
+			var randomAccessStream = new InMemoryRandomAccessStream();
+
+			using (var outputStream = randomAccessStream.AsStreamForWrite())
+			{
+				outputStream.Write(bytes, 0, bytes.Length);
+				outputStream.Flush();
+			}
+
+			randomAccessStream.Seek(0);
 			var bitmapImage = new BitmapImage();
 			bitmapImage.SetSource(randomAccessStream);
-			return bitmapImage;
+			return new CachedIcon(bitmapImage, randomAccessStream);
 		}
 
 		private static bool IsDriveRoot(string path)
@@ -179,6 +187,20 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 
 			[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
 			public string szTypeName;
+		}
+
+		private sealed class CachedIcon
+		{
+			public CachedIcon(ImageSource imageSource, InMemoryRandomAccessStream? backingStream)
+			{
+				ImageSource = imageSource;
+				BackingStream = backingStream;
+			}
+
+			public ImageSource ImageSource { get; }
+
+			// Keep the WinRT stream alive for the lifetime of the cached image.
+			public InMemoryRandomAccessStream? BackingStream { get; }
 		}
 	}
 }
