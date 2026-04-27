@@ -16,6 +16,8 @@ $winUiProjectPath = Join-Path $repo "WinUIHost\ExplorerPlusPlus.WinUIHost.csproj
 $winUiReleaseDir = Join-Path $releaseDir "WinUIHost"
 $winUiRuntimeIdentifier = "win-$Platform"
 $winUiBuildOutputDir = Join-Path $repo "WinUIHost\bin\$Platform\$Configuration\net8.0-windows10.0.22621.0\$winUiRuntimeIdentifier"
+$winUiReleaseAssemblyName = "explorerx"
+$winUiExecutableNames = @("ExplorerPlusPlus.WinUIHost.exe", "ExplorerX.exe", "explorerx.exe")
 
 if (-not (Test-Path $projectPath))
 {
@@ -75,8 +77,11 @@ if ($BuildWinUIHost)
 		throw "WinUI host project file not found: $winUiProjectPath"
 	}
 
-	Get-CimInstance Win32_Process -Filter "Name = 'ExplorerPlusPlus.WinUIHost.exe'" -ErrorAction SilentlyContinue |
-		Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($winUiReleaseDir, [System.StringComparison]::OrdinalIgnoreCase) } |
+		Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+			Where-Object {
+				$_.Name -in $winUiExecutableNames -and $_.ExecutablePath -and
+				$_.ExecutablePath.StartsWith($winUiReleaseDir, [System.StringComparison]::OrdinalIgnoreCase)
+			} |
 		ForEach-Object {
 			Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
 		}
@@ -98,6 +103,7 @@ if ($BuildWinUIHost)
 			"-o",
 			$winUiReleaseDir,
 			"-p:Platform=$Platform",
+			"-p:AssemblyName=$winUiReleaseAssemblyName",
 			"-p:DebugSymbols=false",
 			"-p:DebugType=None",
 			"-p:SelfContained=$WinUIHostSelfContained",
@@ -128,7 +134,14 @@ if ($BuildWinUIHost)
 			}
 
 			Copy-Item (Join-Path $winUiBuildOutputDir "*.xbf") $winUiReleaseDir -Force
-			Copy-Item (Join-Path $winUiBuildOutputDir "ExplorerPlusPlus.WinUIHost.pri") $winUiReleaseDir -Force
+			$priFiles = Get-ChildItem (Join-Path $winUiBuildOutputDir "*.pri") -ErrorAction SilentlyContinue
+
+			if (-not $priFiles)
+			{
+				throw "WinUI host PRI file not found in $winUiBuildOutputDir"
+			}
+
+			Copy-Item $priFiles.FullName $winUiReleaseDir -Force
 		}
 
 		Remove-Item (Join-Path $winUiReleaseDir "startup.log") -Force -ErrorAction SilentlyContinue

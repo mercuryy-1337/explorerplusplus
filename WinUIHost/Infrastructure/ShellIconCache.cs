@@ -23,7 +23,7 @@ namespace ExplorerPlusPlus.WinUIHost.Infrastructure
 			new(StringComparer.OrdinalIgnoreCase);
 		private static readonly string s_iconCacheDirectory = Path.Combine(
 			Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-			"ExplorerPlusPlus.WinUIHost",
+			"ExplorerX",
 			"IconCache");
 
 		public static ImageSource? GetFolderIcon(string activationPath)

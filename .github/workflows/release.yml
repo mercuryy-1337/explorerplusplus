@@ -2,14 +2,16 @@ name: release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - "**"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   build-and-release:
+    if: github.event_name == 'workflow_dispatch' || github.ref_name == github.event.repository.default_branch
     runs-on: windows-2022
 
     steps:
@@ -19,13 +21,65 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      - name: Resolve version and tag
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content '.\WinUIHost\ExplorerPlusPlus.WinUIHost.csproj'
+          $versionNode = $project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1
+
+          if (-not $versionNode)
+          {
+            throw 'Version property not found in WinUIHost\ExplorerPlusPlus.WinUIHost.csproj.'
+          }
+
+          $version = $versionNode.Version.Trim()
+
+          if ([string]::IsNullOrWhiteSpace($version))
+          {
+            throw 'Resolved version was empty.'
+          }
+
+          $tag = "v$version"
+          $tagLookup = git ls-remote --tags origin "refs/tags/$tag"
+
+          if ($LASTEXITCODE -ne 0)
+          {
+            throw "Failed to query remote tags for $tag."
+          }
+
+          $tagExists = -not [string]::IsNullOrWhiteSpace($tagLookup)
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "tag_exists=$tagExists" >> $env:GITHUB_OUTPUT
+
+      - name: Skip existing release tag
+        if: steps.version.outputs.tag_exists == 'True'
+        shell: pwsh
+        run: Write-Host "Tag ${{ steps.version.outputs.tag }} already exists. Skipping release creation."
+
       - name: Build Explorer++ release
+        if: steps.version.outputs.tag_exists != 'True'
         shell: pwsh
         run: .\build-release.ps1
 
+      - name: Create version tag
+        if: steps.version.outputs.tag_exists != 'True'
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a '${{ steps.version.outputs.tag }}' -m 'ExplorerX ${{ steps.version.outputs.version }}'
+          git push origin 'refs/tags/${{ steps.version.outputs.tag }}'
+
       - name: Publish GitHub release
+        if: steps.version.outputs.tag_exists != 'True'
         uses: softprops/action-gh-release@v2
         with:
-          files: release/Explorer++.exe
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ExplorerX ${{ steps.version.outputs.version }}
+          files: release/WinUIHost/explorerx.exe
           fail_on_unmatched_files: true
           generate_release_notes: true
+          target_commitish: ${{ github.sha }}

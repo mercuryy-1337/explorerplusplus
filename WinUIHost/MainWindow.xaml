@@ -3,7 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ExplorerPlusPlus.WinUIHost.Controls"
-    Title="Explorer++ WinUI Host">
+    Title="ExplorerX">
     <Grid x:Name="RootLayout" Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -120,7 +120,7 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <TextBox x:Name="AddressPathTextBox" Margin="12,0" Padding="0,9,0,7" Background="Transparent" BorderThickness="0" Foreground="{ThemeResource ShellTextBrush}" IsReadOnly="True" KeyDown="AddressPathTextBox_KeyDown" LostFocus="AddressPathTextBox_LostFocus" Text="{Binding Navigation.PathText}" Visibility="{Binding Navigation.PathTextVisibility}" />
+                        <TextBox x:Name="AddressPathTextBox" Margin="12,0" Padding="0,9,0,7" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Foreground="{ThemeResource ShellTextBrush}" IsReadOnly="True" KeyDown="AddressPathTextBox_KeyDown" LostFocus="AddressPathTextBox_LostFocus" Text="{Binding Navigation.PathText}" Visibility="{Binding Navigation.PathTextVisibility}" />
                     </Grid>
                 </Border>
             </Grid>

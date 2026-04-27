@@ -20,6 +20,7 @@ namespace ExplorerPlusPlus.WinUIHost
 {
 	public sealed partial class MainWindow : Window
 	{
+		private const string AppDisplayName = "ExplorerX";
 		private static readonly string LogPath = Path.Combine(
 			Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory,
 			"startup.log");
@@ -38,8 +39,9 @@ namespace ExplorerPlusPlus.WinUIHost
 				m_uiSettings.ColorValuesChanged += OnSystemColorValuesChanged;
 				ApplyCurrentThemeState();
 				ConfigureWindowChrome();
+				ConfigureAddressPathTextBox();
 				AppendLog("InitializeComponent complete");
-				Title = "Explorer++ WinUI Host";
+				Title = AppDisplayName;
 				ViewModel = new ShellRootViewModel();
 				AppendLog("ShellRootViewModel created");
 				RootLayout.DataContext = ViewModel;
@@ -81,6 +83,19 @@ namespace ExplorerPlusPlus.WinUIHost
 			UpdateNavToolbarButtonVisual(ForwardButton);
 			UpdateNavToolbarButtonVisual(UpButton);
 			UpdateNavToolbarButtonVisual(RefreshButton);
+		}
+
+		private void ConfigureAddressPathTextBox()
+		{
+			AddressPathTextBox.UseSystemFocusVisuals = false;
+			AddressPathTextBox.Background = s_transparentBrush;
+			AddressPathTextBox.BorderBrush = s_transparentBrush;
+			AddressPathTextBox.Resources["TextControlBackground"] = s_transparentBrush;
+			AddressPathTextBox.Resources["TextControlBackgroundPointerOver"] = s_transparentBrush;
+			AddressPathTextBox.Resources["TextControlBackgroundFocused"] = s_transparentBrush;
+			AddressPathTextBox.Resources["TextControlBorderBrush"] = s_transparentBrush;
+			AddressPathTextBox.Resources["TextControlBorderBrushPointerOver"] = s_transparentBrush;
+			AddressPathTextBox.Resources["TextControlBorderBrushFocused"] = s_transparentBrush;
 		}
 
 		private void ConfigureWindowChrome()
