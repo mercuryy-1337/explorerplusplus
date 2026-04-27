@@ -18,6 +18,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
@@ -29,12 +30,10 @@ using WinRT.Interop;
 
 namespace ExplorerPlusPlus.WinUIHost
 {
+	[SupportedOSPlatform("windows")]
 	public sealed partial class MainWindow : Window
 	{
 		private const string AppDisplayName = "ExplorerX";
-		private static readonly string LogPath = Path.Combine(
-			Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory,
-			"startup.log");
 		private static readonly Brush s_transparentBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
 
 		private AppWindow? m_appWindow;
@@ -192,15 +191,7 @@ namespace ExplorerPlusPlus.WinUIHost
 
 		private static void AppendLog(string message)
 		{
-			try
-			{
-				File.AppendAllText(LogPath,
-					$"[{DateTimeOffset.Now:O}] {message}{Environment.NewLine}",
-					Encoding.UTF8);
-			}
-			catch
-			{
-			}
+			App.AppendLog(message);
 		}
 
 		private static void AppendExceptionDetails(string prefix, Exception ex)
@@ -547,22 +538,112 @@ namespace ExplorerPlusPlus.WinUIHost
 
 		private void ShowFolderProperties(string folderPath)
 		{
+			if (!Directory.Exists(folderPath) && !File.Exists(folderPath))
+			{
+				return;
+			}
+
+			var windowHandle = WindowNative.GetWindowHandle(this);
+
+			if (TryShowPropertiesWithDataObject(folderPath, windowHandle))
+			{
+				return;
+			}
+
+			if (TryShowPropertiesWithPath(folderPath, windowHandle))
+			{
+				return;
+			}
+
+			TryShowPropertiesWithShellVerb(folderPath, windowHandle);
+		}
+
+		private static bool TryShowPropertiesWithDataObject(string path, IntPtr windowHandle)
+		{
+			IShellFolder? desktopFolder = null;
+			object? dataObject = null;
+			IntPtr itemIdList = IntPtr.Zero;
+
+			try
+			{
+				int hr = SHGetDesktopFolder(out desktopFolder);
+				if (hr < 0 || desktopFolder == null)
+				{
+					return false;
+				}
+
+				uint eaten = 0;
+				uint attributes = 0;
+				hr = desktopFolder.ParseDisplayName(windowHandle, IntPtr.Zero, path, ref eaten, out itemIdList, ref attributes);
+				if (hr < 0 || itemIdList == IntPtr.Zero)
+				{
+					return false;
+				}
+
+				var itemIdLists = new[] { itemIdList };
+				Guid dataObjectId = typeof(IDataObject).GUID;
+				hr = desktopFolder.GetUIObjectOf(windowHandle, (uint)itemIdLists.Length, itemIdLists, ref dataObjectId, IntPtr.Zero, out dataObject);
+				if (hr < 0 || dataObject is not IDataObject shellDataObject)
+				{
+					return false;
+				}
+
+				return SHMultiFileProperties(shellDataObject, 0) >= 0;
+			}
+			catch
+			{
+				return false;
+			}
+			finally
+			{
+				if (dataObject != null && Marshal.IsComObject(dataObject))
+				{
+					Marshal.ReleaseComObject(dataObject);
+				}
+
+				if (desktopFolder != null && Marshal.IsComObject(desktopFolder))
+				{
+					Marshal.ReleaseComObject(desktopFolder);
+				}
+
+				if (itemIdList != IntPtr.Zero)
+				{
+					Marshal.FreeCoTaskMem(itemIdList);
+				}
+			}
+		}
+
+		private static bool TryShowPropertiesWithPath(string path, IntPtr windowHandle)
+		{
+			try
+			{
+				return SHObjectProperties(windowHandle, ShopFilePath, path, null);
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
+		private static bool TryShowPropertiesWithShellVerb(string path, IntPtr windowHandle)
+		{
 			try
 			{
 				var executeInfo = new ShellExecuteInfo
 				{
 					cbSize = Marshal.SizeOf<ShellExecuteInfo>(),
 					fMask = SeeMaskInvokeIdList | SeeMaskFlagNoUi,
-					hwnd = WindowNative.GetWindowHandle(this),
+					hwnd = windowHandle,
 					lpVerb = "properties",
-					lpFile = folderPath,
+					lpFile = path,
 					nShow = SwShownormal
 				};
 
-				ShellExecuteEx(ref executeInfo);
+				return ShellExecuteEx(ref executeInfo);
 			}
 			catch
 			{
+				return false;
 			}
 		}
 
@@ -606,10 +687,21 @@ namespace ExplorerPlusPlus.WinUIHost
 
 		private const uint SeeMaskInvokeIdList = 0x0000000C;
 		private const uint SeeMaskFlagNoUi = 0x00000400;
+		private const uint ShopFilePath = 0x00000002;
 		private const int SwShownormal = 1;
+
+		[DllImport("shell32.dll")]
+		private static extern int SHGetDesktopFolder([MarshalAs(UnmanagedType.Interface)] out IShellFolder shellFolder);
 
 		[DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
 		private static extern bool ShellExecuteEx(ref ShellExecuteInfo executeInfo);
+
+		[DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+		private static extern int SHMultiFileProperties([MarshalAs(UnmanagedType.Interface)] IDataObject dataObject, uint flags);
+
+		[DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		private static extern bool SHObjectProperties(IntPtr hwnd, uint shopObjectType, string objectName, string? propertyPage);
 
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 		private struct ShellExecuteInfo
@@ -629,6 +721,48 @@ namespace ExplorerPlusPlus.WinUIHost
 			public uint dwHotKey;
 			public IntPtr hIconOrMonitor;
 			public IntPtr hProcess;
+		}
+
+		[ComImport]
+		[Guid("000214E6-0000-0000-C000-000000000046")]
+		[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+		private interface IShellFolder
+		{
+			[PreserveSig]
+			int ParseDisplayName(IntPtr hwnd, IntPtr pbc, [MarshalAs(UnmanagedType.LPWStr)] string displayName,
+				ref uint eaten, out IntPtr itemIdList, ref uint attributes);
+
+			[PreserveSig]
+			int EnumObjects(IntPtr hwnd, int flags, out IntPtr enumIdList);
+
+			[PreserveSig]
+			int BindToObject(IntPtr itemIdList, IntPtr pbc, ref Guid interfaceId, out IntPtr shellObject);
+
+			[PreserveSig]
+			int BindToStorage(IntPtr itemIdList, IntPtr pbc, ref Guid interfaceId, out IntPtr shellStorage);
+
+			[PreserveSig]
+			int CompareIDs(IntPtr lParam, IntPtr firstItemIdList, IntPtr secondItemIdList);
+
+			[PreserveSig]
+			int CreateViewObject(IntPtr hwndOwner, ref Guid interfaceId, out IntPtr viewObject);
+
+			[PreserveSig]
+			int GetAttributesOf(uint itemCount, [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0)] IntPtr[] itemIdLists,
+				ref uint attributes);
+
+			[PreserveSig]
+			int GetUIObjectOf(IntPtr hwndOwner, uint itemCount,
+				[MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] IntPtr[] itemIdLists,
+				ref Guid interfaceId, IntPtr reserved,
+				[MarshalAs(UnmanagedType.IUnknown)] out object shellObject);
+
+			[PreserveSig]
+			int GetDisplayNameOf(IntPtr itemIdList, uint flags, out IntPtr name);
+
+			[PreserveSig]
+			int SetNameOf(IntPtr hwnd, IntPtr itemIdList, [MarshalAs(UnmanagedType.LPWStr)] string name,
+				uint flags, out IntPtr outputItemIdList);
 		}
 	}
 }

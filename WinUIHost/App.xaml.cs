@@ -4,8 +4,11 @@
 
 using Microsoft.UI.Xaml;
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ExplorerPlusPlus.WinUIHost
 {
@@ -14,6 +17,9 @@ namespace ExplorerPlusPlus.WinUIHost
 		private static readonly string LogPath = Path.Combine(
 			Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory,
 			"startup.log");
+		private static readonly ConcurrentQueue<string> s_pendingLogEntries = new();
+		private static readonly UTF8Encoding s_utf8Encoding = new(false);
+		private static int s_logFlushScheduled;
 
 		public static MainWindow? ShellWindow { get; private set; }
 
@@ -45,16 +51,54 @@ namespace ExplorerPlusPlus.WinUIHost
 			AppendLog($"Unhandled exception: {e.Exception}");
 		}
 
-		private static void AppendLog(string message)
+		internal static void AppendLog(string message)
 		{
 			try
 			{
-				File.AppendAllText(LogPath,
-					$"[{DateTimeOffset.Now:O}] {message}{Environment.NewLine}",
-					Encoding.UTF8);
+				s_pendingLogEntries.Enqueue($"[{DateTimeOffset.Now:O}] {message}{Environment.NewLine}");
+
+				if (Interlocked.Exchange(ref s_logFlushScheduled, 1) == 0)
+				{
+					_ = Task.Run(FlushPendingLogsAsync);
+				}
 			}
 			catch
 			{
+			}
+		}
+
+		private static async Task FlushPendingLogsAsync()
+		{
+			try
+			{
+				await using var stream = new FileStream(
+					LogPath,
+					FileMode.Append,
+					FileAccess.Write,
+					FileShare.ReadWrite,
+					4096,
+					useAsync: true);
+				await using var writer = new StreamWriter(stream, s_utf8Encoding);
+
+				while (s_pendingLogEntries.TryDequeue(out string? entry))
+				{
+					await writer.WriteAsync(entry);
+				}
+
+				await writer.FlushAsync();
+			}
+			catch
+			{
+			}
+			finally
+			{
+				Interlocked.Exchange(ref s_logFlushScheduled, 0);
+
+				if (!s_pendingLogEntries.IsEmpty
+					&& Interlocked.Exchange(ref s_logFlushScheduled, 1) == 0)
+				{
+					_ = Task.Run(FlushPendingLogsAsync);
+				}
 			}
 		}
 	}

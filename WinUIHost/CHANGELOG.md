@@ -2,6 +2,17 @@
 
 This changelog tracks the WinUI host line separately from the upstream Explorer++ history.
 
+## 1.1.0.3 - 2026-04-27
+
+### Fixed
+
+- Reworked the folder-pane Properties action to use the shell data-object properties path first, with additional shell API fallbacks for stripped-down Windows environments where the plain properties verb is unreliable.
+- Moved startup log writes off the UI thread so first-run creation of `startup.log` no longer stalls app launch.
+
+### Packaging
+
+- Updated the WinUI host version from 1.1.0.2 to 1.1.0.3.
+
 ## 1.1.0.2 - 2026-04-27
 
 ### Fixed
