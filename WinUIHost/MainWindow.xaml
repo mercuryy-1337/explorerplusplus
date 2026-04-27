@@ -187,54 +187,179 @@
                 </ListView>
             </Grid>
 
-            <Border Grid.Column="1" Margin="0,16,0,0" Background="{ThemeResource ShellSurfaceBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
+            <Grid Grid.Column="1" Margin="0,16,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-                    <Grid Margin="16,16,16,8" ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="180" />
-                            <ColumnDefinition Width="160" />
-                            <ColumnDefinition Width="120" />
-                        </Grid.ColumnDefinitions>
+                <Border Grid.Row="0" Background="{ThemeResource ShellChromeBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
+                    <Grid MinHeight="54" Padding="12,8">
+                        <Grid.Resources>
+                            <Style x:Key="CommandBarButtonStyle" TargetType="Button">
+                                <Setter Property="Padding" Value="10,6" />
+                                <Setter Property="MinHeight" Value="32" />
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="BorderBrush" Value="Transparent" />
+                                <Setter Property="BorderThickness" Value="0" />
+                                <Setter Property="CornerRadius" Value="8" />
+                                <Setter Property="Foreground" Value="{ThemeResource ShellTextBrush}" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="RootBorder" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
 
-                        <TextBlock Grid.Column="0" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Name" />
-                        <TextBlock Grid.Column="1" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Type" />
-                        <TextBlock Grid.Column="2" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Modified" />
-                        <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Size" />
-                    </Grid>
+                                            <VisualStateManager.VisualStateGroups>
+                                                <VisualStateGroup x:Name="CommonStates">
+                                                    <VisualState x:Name="Normal" />
+                                                    <VisualState x:Name="PointerOver">
+                                                        <Storyboard>
+                                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootBorder" Storyboard.TargetProperty="Background">
+                                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ShellNavButtonHoverBrush}" />
+                                                            </ObjectAnimationUsingKeyFrames>
+                                                        </Storyboard>
+                                                    </VisualState>
+                                                    <VisualState x:Name="Pressed">
+                                                        <Storyboard>
+                                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootBorder" Storyboard.TargetProperty="Background">
+                                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ShellNavButtonPressedBrush}" />
+                                                            </ObjectAnimationUsingKeyFrames>
+                                                        </Storyboard>
+                                                    </VisualState>
+                                                    <VisualState x:Name="Disabled">
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0.45" Duration="0" />
+                                                        </Storyboard>
+                                                    </VisualState>
+                                                </VisualStateGroup>
+                                            </VisualStateManager.VisualStateGroups>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
 
-                    <ListView x:Name="FilesListView" Grid.Row="1" Margin="8,0,8,8" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick" ItemsSource="{Binding Files}">
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="8,2" Padding="8,8" ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="180" />
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="120" />
-                                    </Grid.ColumnDefinitions>
+                            <Style x:Key="CommandBarIconButtonStyle" TargetType="Button" BasedOn="{StaticResource CommandBarButtonStyle}">
+                                <Setter Property="Width" Value="34" />
+                                <Setter Property="Padding" Value="0" />
+                            </Style>
+                        </Grid.Resources>
 
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                        <Grid Width="16" Height="16" VerticalAlignment="Center">
-                                            <Image Width="16" Height="16" Opacity="{Binding NativeIconOpacity}" Source="{Binding IconSource}" Stretch="Uniform" />
-                                            <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{ThemeResource ShellTextBrush}" HorizontalAlignment="Center" Opacity="{Binding GlyphOpacity}" VerticalAlignment="Center" />
-                                        </Grid>
-                                        <TextBlock Foreground="{ThemeResource ShellTextBrush}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                        <Grid ColumnSpacing="10" VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                                <Button Style="{StaticResource CommandBarButtonStyle}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                                        <TextBlock Text="New" VerticalAlignment="Center" />
+                                        <FontIcon Glyph="&#xE70D;" FontFamily="Segoe Fluent Icons" FontSize="10" VerticalAlignment="Center" />
                                     </StackPanel>
-                                    <TextBlock Grid.Column="1" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="{Binding ItemType}" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="{Binding Modified}" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="3" Foreground="{ThemeResource ShellSecondaryTextBrush}" HorizontalAlignment="Right" Text="{Binding Size}" VerticalAlignment="Center" />
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </Grid>
-            </Border>
+                                </Button>
+
+                                <Border Width="1" Height="20" Margin="6,0" Background="{ThemeResource ShellBorderBrush}" VerticalAlignment="Center" />
+
+                                <Button Style="{StaticResource CommandBarIconButtonStyle}">
+                                    <FontIcon Glyph="&#xE8C6;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                                </Button>
+                                <Button Style="{StaticResource CommandBarIconButtonStyle}">
+                                    <FontIcon Glyph="&#xE8C8;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                                </Button>
+                                <Button Style="{StaticResource CommandBarIconButtonStyle}">
+                                    <FontIcon Glyph="&#xE77F;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                                </Button>
+                                <Button Style="{StaticResource CommandBarIconButtonStyle}">
+                                    <FontIcon Glyph="&#xE70F;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                                </Button>
+                                <Button Style="{StaticResource CommandBarIconButtonStyle}">
+                                    <FontIcon Glyph="&#xE72D;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                                </Button>
+                                <Button Style="{StaticResource CommandBarIconButtonStyle}">
+                                    <FontIcon Glyph="&#xE74D;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                                </Button>
+
+                                <Border Width="1" Height="20" Margin="6,0" Background="{ThemeResource ShellBorderBrush}" VerticalAlignment="Center" />
+
+                                <Button Style="{StaticResource CommandBarButtonStyle}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="Sort" VerticalAlignment="Center" />
+                                        <FontIcon Glyph="&#xE70D;" FontFamily="Segoe Fluent Icons" FontSize="10" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource CommandBarButtonStyle}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="View" VerticalAlignment="Center" />
+                                        <FontIcon Glyph="&#xE70D;" FontFamily="Segoe Fluent Icons" FontSize="10" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource CommandBarIconButtonStyle}">
+                                    <FontIcon Glyph="&#xE712;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                                </Button>
+                            </StackPanel>
+
+                            <Button Grid.Column="1" Style="{StaticResource CommandBarButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xECA5;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                                    <TextBlock Text="Details" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Margin="0,12,0,0" Background="{ThemeResource ShellSurfaceBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Margin="16,16,16,8" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="160" />
+                                <ColumnDefinition Width="120" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Name" />
+                            <TextBlock Grid.Column="1" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Type" />
+                            <TextBlock Grid.Column="2" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Modified" />
+                            <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Size" />
+                        </Grid>
+
+                        <ListView x:Name="FilesListView" Grid.Row="1" Margin="8,0,8,8" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick" ItemsSource="{Binding Files}">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="8,2" Padding="8,8" ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="180" />
+                                            <ColumnDefinition Width="160" />
+                                            <ColumnDefinition Width="120" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                            <Grid Width="16" Height="16" VerticalAlignment="Center">
+                                                <Image Width="16" Height="16" Opacity="{Binding NativeIconOpacity}" Source="{Binding IconSource}" Stretch="Uniform" />
+                                                <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{ThemeResource ShellTextBrush}" HorizontalAlignment="Center" Opacity="{Binding GlyphOpacity}" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <TextBlock Foreground="{ThemeResource ShellTextBrush}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="{Binding ItemType}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="2" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="{Binding Modified}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="3" Foreground="{ThemeResource ShellSecondaryTextBrush}" HorizontalAlignment="Right" Text="{Binding Size}" VerticalAlignment="Center" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Window>
