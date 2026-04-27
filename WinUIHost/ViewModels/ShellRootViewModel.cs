@@ -115,8 +115,60 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			m_activateFileItemCommand = new RelayCommand<FileItemState>(ActivateFileItem);
 
 			InitializeFolderPane();
-			m_selectedFolderActivationPath = m_currentActivationPath;
-			RefreshState(false);
+			InitializeTabs();
+		}
+
+		public void OpenNewTab()
+		{
+			var tab = CreateTabState(HomeActivationPath);
+			Tabs.Add(tab);
+			ActivateTab(tab, true);
+		}
+
+		public bool CloseTab(TabState? tab)
+		{
+			if (tab == null)
+			{
+				return true;
+			}
+
+			var tabIndex = Tabs.IndexOf(tab);
+
+			if (tabIndex < 0)
+			{
+				return true;
+			}
+
+			if (Tabs.Count == 1)
+			{
+				return false;
+			}
+
+			bool closingSelectedTab = ReferenceEquals(tab, SelectedTab);
+
+			if (closingSelectedTab)
+			{
+				SaveCurrentTabState();
+			}
+
+			Tabs.RemoveAt(tabIndex);
+
+			if (closingSelectedTab)
+			{
+				var nextTabIndex = Math.Min(tabIndex, Tabs.Count - 1);
+				ActivateTab(Tabs[nextTabIndex], true);
+			}
+			else
+			{
+				UpdateTabDividerState();
+			}
+
+			return true;
+		}
+
+		public void ActivateTab(TabState? tab)
+		{
+			ActivateTab(tab, true);
 		}
 
 		public bool TryNavigateToPath(string? pathText)
@@ -368,18 +420,95 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			NotifyCommandStateChanged();
 		}
 
+		private TabState CreateTabState(string activationPath)
+		{
+			var normalizedActivationPath = NormalizeActivationPath(activationPath);
+
+			return new TabState
+			{
+				ActivationPath = normalizedActivationPath,
+				SelectedFolderActivationPath = normalizedActivationPath,
+				Title = GetDisplayTitle(normalizedActivationPath),
+				Glyph = GetLocationGlyph(normalizedActivationPath)
+			};
+		}
+
+		private void ActivateTab(TabState? tab, bool refreshFolderPane)
+		{
+			if (tab == null)
+			{
+				return;
+			}
+
+			if (ReferenceEquals(tab, SelectedTab))
+			{
+				RefreshTabs();
+				NotifyCommandStateChanged();
+				return;
+			}
+
+			SaveCurrentTabState();
+			SelectedTab = tab;
+			LoadStateFromTab(tab);
+			NotifyFileViewLayoutChanged();
+			RefreshState(refreshFolderPane);
+		}
+
+		private void SaveCurrentTabState()
+		{
+			if (SelectedTab == null)
+			{
+				return;
+			}
+
+			SelectedTab.ActivationPath = m_currentActivationPath;
+			SelectedTab.SelectedFolderActivationPath = m_selectedFolderActivationPath ?? m_currentActivationPath;
+			SelectedTab.Title = GetDisplayTitle(m_currentActivationPath);
+			SelectedTab.Glyph = GetLocationGlyph(m_currentActivationPath);
+			CopyHistory(m_backHistory, SelectedTab.BackHistory);
+			CopyHistory(m_forwardHistory, SelectedTab.ForwardHistory);
+		}
+
+		private void LoadStateFromTab(TabState tab)
+		{
+			var normalizedActivationPath = NormalizeActivationPath(tab.ActivationPath);
+			m_currentActivationPath = normalizedActivationPath;
+			m_selectedFolderActivationPath = tab.SelectedFolderActivationPath ?? normalizedActivationPath;
+			CopyHistory(tab.BackHistory, m_backHistory);
+			CopyHistory(tab.ForwardHistory, m_forwardHistory);
+		}
+
+		private static void CopyHistory(List<string> source, List<string> destination)
+		{
+			destination.Clear();
+			destination.AddRange(source);
+		}
+
+		private void InitializeTabs()
+		{
+			var initialTab = CreateTabState(m_currentActivationPath);
+			Tabs.Add(initialTab);
+			ActivateTab(initialTab, false);
+		}
+
 		private void RefreshTabs()
 		{
-			Tabs.Clear();
-			var tab = new TabState
-			{
-				Title = GetDisplayTitle(m_currentActivationPath),
-				Glyph = GetLocationGlyph(m_currentActivationPath),
-				Selected = true
-			};
+			SaveCurrentTabState();
 
-			Tabs.Add(tab);
-			SelectedTab = tab;
+			foreach (var tab in Tabs)
+			{
+				tab.Selected = ReferenceEquals(tab, SelectedTab);
+			}
+
+			UpdateTabDividerState();
+		}
+
+		private void UpdateTabDividerState()
+		{
+			for (int index = 0; index < Tabs.Count; index++)
+			{
+				Tabs[index].ShowTrailingDivider = index < Tabs.Count - 1;
+			}
 		}
 
 		private void RefreshNavigation()

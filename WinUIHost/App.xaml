@@ -20,6 +20,8 @@
                     <SolidColorBrush x:Key="ShellButtonBrush" Color="#F1F3F6" />
                     <SolidColorBrush x:Key="ShellNavButtonHoverBrush" Color="#E7EBF0" />
                     <SolidColorBrush x:Key="ShellNavButtonPressedBrush" Color="#DDE2E8" />
+                    <SolidColorBrush x:Key="ShellTabActionHoverBrush" Color="#D5DCE5" />
+                    <SolidColorBrush x:Key="ShellTabActionPressedBrush" Color="#C6CED9" />
                     <SolidColorBrush x:Key="ShellBorderBrush" Color="#E3E6EA" />
                     <SolidColorBrush x:Key="ShellTextBrush" Color="#17181A" />
                     <SolidColorBrush x:Key="ShellSecondaryTextBrush" Color="#61656F" />
@@ -38,6 +40,8 @@
                     <SolidColorBrush x:Key="ShellButtonBrush" Color="#F1F3F6" />
                     <SolidColorBrush x:Key="ShellNavButtonHoverBrush" Color="#E7EBF0" />
                     <SolidColorBrush x:Key="ShellNavButtonPressedBrush" Color="#DDE2E8" />
+                    <SolidColorBrush x:Key="ShellTabActionHoverBrush" Color="#D5DCE5" />
+                    <SolidColorBrush x:Key="ShellTabActionPressedBrush" Color="#C6CED9" />
                     <SolidColorBrush x:Key="ShellBorderBrush" Color="#E3E6EA" />
                     <SolidColorBrush x:Key="ShellTextBrush" Color="#17181A" />
                     <SolidColorBrush x:Key="ShellSecondaryTextBrush" Color="#61656F" />
@@ -56,6 +60,8 @@
                     <SolidColorBrush x:Key="ShellButtonBrush" Color="#2A3038" />
                     <SolidColorBrush x:Key="ShellNavButtonHoverBrush" Color="#2A3038" />
                     <SolidColorBrush x:Key="ShellNavButtonPressedBrush" Color="#363D47" />
+                    <SolidColorBrush x:Key="ShellTabActionHoverBrush" Color="#2A3038" />
+                    <SolidColorBrush x:Key="ShellTabActionPressedBrush" Color="#363D47" />
                     <SolidColorBrush x:Key="ShellBorderBrush" Color="#363C46" />
                     <SolidColorBrush x:Key="ShellTextBrush" Color="#F3F5F7" />
                     <SolidColorBrush x:Key="ShellSecondaryTextBrush" Color="#B6BDC8" />

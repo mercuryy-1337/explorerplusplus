@@ -396,6 +396,161 @@ namespace ExplorerPlusPlus.WinUIHost
 			}
 		}
 
+		private void TabActionButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				SetNavToolbarButtonBrush(button, "ShellTabActionHoverBrush");
+			}
+		}
+
+		private void TabActionButton_PointerExited(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetNavToolbarButtonBrush(button);
+			}
+		}
+
+		private void TabActionButton_PointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				SetNavToolbarButtonBrush(button, "ShellTabActionPressedBrush");
+			}
+		}
+
+		private void TabActionButton_PointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				if (button.IsPointerOver)
+				{
+					SetNavToolbarButtonBrush(button, "ShellTabActionHoverBrush");
+				}
+				else
+				{
+					ResetNavToolbarButtonBrush(button);
+				}
+			}
+		}
+
+		private void TabActionButton_PointerCanceled(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetNavToolbarButtonBrush(button);
+			}
+		}
+
+		private void TabActionButton_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetNavToolbarButtonBrush(button);
+			}
+		}
+
+		private static bool IsSelectedTabButton(Button button)
+		{
+			return button.DataContext is TabState tab && tab.Selected;
+		}
+
+		private void SetTabButtonBrush(Button button, string resourceKey)
+		{
+			if (IsSelectedTabButton(button))
+			{
+				ResetTabButtonBrush(button);
+				return;
+			}
+
+			button.Background = ResolveThemeBrush(resourceKey);
+		}
+
+		private static void ResetTabButtonBrush(Button button)
+		{
+			button.Background = s_transparentBrush;
+		}
+
+		private void TabButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				SetTabButtonBrush(button, "ShellNavButtonHoverBrush");
+			}
+		}
+
+		private void TabButton_PointerExited(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetTabButtonBrush(button);
+			}
+		}
+
+		private void TabButton_PointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				SetTabButtonBrush(button, "ShellNavButtonPressedBrush");
+			}
+		}
+
+		private void TabButton_PointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				if (button.IsPointerOver)
+				{
+					SetTabButtonBrush(button, "ShellNavButtonHoverBrush");
+				}
+				else
+				{
+					ResetTabButtonBrush(button);
+				}
+			}
+		}
+
+		private void TabButton_PointerCanceled(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetTabButtonBrush(button);
+			}
+		}
+
+		private void TabButton_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetTabButtonBrush(button);
+			}
+		}
+
+		private void TabButton_Click(object sender, RoutedEventArgs e)
+		{
+			if (sender is FrameworkElement element && element.DataContext is TabState tab)
+			{
+				ViewModel.ActivateTab(tab);
+			}
+		}
+
+		private void TabCloseButton_Click(object sender, RoutedEventArgs e)
+		{
+			if (sender is FrameworkElement element && element.DataContext is TabState tab)
+			{
+				if (!ViewModel.CloseTab(tab))
+				{
+					Close();
+				}
+			}
+		}
+
+		private void NewTabButton_Click(object sender, RoutedEventArgs e)
+		{
+			ViewModel.OpenNewTab();
+		}
+
 		private static Border? GetFileListHeaderBackground(Button button)
 		{
 			if (button.Parent is Grid grid && grid.Children.Count > 0 && grid.Children[0] is Border background)

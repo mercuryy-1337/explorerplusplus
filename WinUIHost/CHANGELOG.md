@@ -6,6 +6,9 @@ This changelog tracks the WinUI host line separately from the upstream Explorer+
 
 ### Changed
 
+- Added a functional Explorer-style tab strip with selectable tabs, a persistent add-tab button, selected-tab close buttons, and short dividers between tabs.
+- Updated the tab strip so every tab keeps a visible hoverable close button, and the add-tab button now has its own divider from the last tab.
+- Lowered the add-tab button slightly for better vertical alignment and strengthened the light-mode hover/pressed feedback on the tab close and add buttons.
 - Made the address bar editable so typed paths can be submitted with Enter, including environment-variable paths such as %LOCALAPPDATA% and %USERPROFILE%.
 - Updated the This PC drive summary to switch from GB to TB when capacities reach four-digit gigabyte ranges.
 - Split the folder-pane interaction zones so the strip before the icon stays dedicated to expansion with the normal cursor, while the icon-through-right-edge region keeps the hand cursor for navigation.
@@ -14,6 +17,7 @@ This changelog tracks the WinUI host line separately from the upstream Explorer+
 
 - Fixed the address bar text colors in dark mode so typed paths remain readable against the shell input background.
 - Fixed the split folder-pane hit zones so hover, open, and expand/collapse interactions stay functional while keeping the separate arrow and hand cursor regions.
+- Fixed tab switching so moving between This PC and folder tabs updates the correct grid/list layout immediately instead of carrying the previous tab's layout mode across tabs.
 
 ### Packaging
 

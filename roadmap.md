@@ -17,8 +17,8 @@
 
 ### Tabs
 - [x] Add a UI-neutral tab strip model for a single browser window.
-- [ ] Bind a future WinUI 3 tab view to the tab strip model.
-- [ ] Carry tab icons into the tab strip model once the WinUI host needs them.
+- [x] Bind a future WinUI 3 tab view to the tab strip model.
+- [x] Carry tab icons into the tab strip model once the WinUI host needs them.
 
 ### Navigation
 - [x] Define a WinUI-facing navigation surface around the active `ShellBrowser` and `ShellNavigationController`.
