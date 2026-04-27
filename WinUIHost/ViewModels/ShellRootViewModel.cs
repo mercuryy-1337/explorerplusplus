@@ -5,6 +5,7 @@
 using ExplorerPlusPlus.WinUIHost.Infrastructure;
 using ExplorerPlusPlus.WinUIHost.Models;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
@@ -22,11 +23,14 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 	{
 		private const string HomeActivationPath = "shell:home";
 		private const string ThisPcActivationPath = "shell:this-pc";
+		private const string SortAscendingGlyph = "\uE70E";
+		private const string SortDescendingGlyph = "\uE70D";
 
 		private readonly RelayCommand m_goBackCommand;
 		private readonly RelayCommand m_goForwardCommand;
 		private readonly RelayCommand m_goUpCommand;
 		private readonly RelayCommand m_refreshCommand;
+		private readonly RelayCommand<string> m_sortFilesCommand;
 		private readonly RelayCommand<FolderPaneItemState> m_selectFolderCommand;
 		private readonly RelayCommand<FolderPaneItemState> m_activateFolderCommand;
 		private readonly RelayCommand<FolderPaneItemState> m_toggleFolderExpansionCommand;
@@ -41,6 +45,16 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		private CancellationTokenSource? m_filesRefreshCancellationSource;
 		private string m_currentActivationPath = HomeActivationPath;
 		private string? m_selectedFolderActivationPath;
+		private FileSortColumn m_fileSortColumn = FileSortColumn.Name;
+		private bool m_fileSortAscending = true;
+
+		private enum FileSortColumn
+		{
+			Name,
+			Type,
+			Modified,
+			Size
+		}
 
 		public ObservableCollection<TabState> Tabs { get; }
 		public NavigationState Navigation { get; }
@@ -51,10 +65,22 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		public ICommand GoForwardCommand => m_goForwardCommand;
 		public ICommand GoUpCommand => m_goUpCommand;
 		public ICommand RefreshCommand => m_refreshCommand;
+		public ICommand SortFilesCommand => m_sortFilesCommand;
 		public ICommand SelectFolderCommand => m_selectFolderCommand;
 		public ICommand ActivateFolderCommand => m_activateFolderCommand;
 		public ICommand ToggleFolderExpansionCommand => m_toggleFolderExpansionCommand;
 		public ICommand ActivateFileItemCommand => m_activateFileItemCommand;
+		public string NameSortGlyph => GetSortGlyph(FileSortColumn.Name);
+		public double NameSortIndicatorOpacity => GetSortIndicatorOpacity(FileSortColumn.Name);
+		public string TypeSortGlyph => GetSortGlyph(FileSortColumn.Type);
+		public double TypeSortIndicatorOpacity => GetSortIndicatorOpacity(FileSortColumn.Type);
+		public string ModifiedSortGlyph => GetSortGlyph(FileSortColumn.Modified);
+		public double ModifiedSortIndicatorOpacity => GetSortIndicatorOpacity(FileSortColumn.Modified);
+		public string SizeSortGlyph => GetSortGlyph(FileSortColumn.Size);
+		public double SizeSortIndicatorOpacity => GetSortIndicatorOpacity(FileSortColumn.Size);
+		public Visibility FileListHeaderVisibility => IsThisPcLocation(m_currentActivationPath) ? Visibility.Collapsed : Visibility.Visible;
+		public Visibility FileListVisibility => IsThisPcLocation(m_currentActivationPath) ? Visibility.Collapsed : Visibility.Visible;
+		public Visibility ThisPcDriveGridVisibility => IsThisPcLocation(m_currentActivationPath) ? Visibility.Visible : Visibility.Collapsed;
 
 		public TabState? SelectedTab
 		{
@@ -82,6 +108,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			m_goForwardCommand = new RelayCommand(GoForward, () => m_forwardHistory.Count > 0);
 			m_goUpCommand = new RelayCommand(GoUp, CanGoUp);
 			m_refreshCommand = new RelayCommand(Refresh);
+			m_sortFilesCommand = new RelayCommand<string>(SortFiles);
 			m_selectFolderCommand = new RelayCommand<FolderPaneItemState>(SelectFolder);
 			m_activateFolderCommand = new RelayCommand<FolderPaneItemState>(ActivateFolder);
 			m_toggleFolderExpansionCommand = new RelayCommand<FolderPaneItemState>(ToggleFolderExpansion);
@@ -192,6 +219,27 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			RefreshState(true);
 		}
 
+		private void SortFiles(string? sortColumnName)
+		{
+			if (!TryGetSortColumn(sortColumnName, out var sortColumn))
+			{
+				return;
+			}
+
+			if (m_fileSortColumn == sortColumn)
+			{
+				m_fileSortAscending = !m_fileSortAscending;
+			}
+			else
+			{
+				m_fileSortColumn = sortColumn;
+				m_fileSortAscending = GetDefaultSortDirection(sortColumn);
+			}
+
+			NotifyFileSortStateChanged();
+			ResortVisibleFiles();
+		}
+
 		private void SelectFolder(FolderPaneItemState? folder)
 		{
 			if (folder?.IsHeader == true)
@@ -274,6 +322,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			}
 
 			m_currentActivationPath = normalizedActivationPath;
+			NotifyFileViewLayoutChanged();
 			m_selectedFolderActivationPath = normalizedActivationPath;
 			EnsureCurrentPathExpanded(normalizedActivationPath);
 
@@ -381,7 +430,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 			if (IsHomeLocation(activationPath) || IsThisPcLocation(activationPath))
 			{
-				foreach (var item in BuildFileItemsForLocation(activationPath, includeIcons: true))
+				foreach (var item in CreateSortedFileSequence(BuildFileItemsForLocation(activationPath, includeIcons: true)))
 				{
 					Files.Add(item);
 				}
@@ -419,9 +468,11 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 					return;
 				}
 
+				var sortedItems = CreateSortedFileSequence(items).ToList();
+
 				Files.Clear();
 
-				foreach (var item in items)
+				foreach (var item in sortedItems)
 				{
 					Files.Add(item);
 				}
@@ -527,6 +578,8 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			{
 				foreach (var drive in GetSortedDrives())
 				{
+					var driveUsage = BuildDriveUsageState(drive);
+
 					yield return new FileItemState
 					{
 						Name = BuildDriveTitle(drive),
@@ -535,6 +588,10 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 						ItemType = BuildDriveTypeLabel(drive),
 						Modified = string.Empty,
 						Size = BuildDriveCapacityLabel(drive),
+						SizeValue = GetDriveCapacitySortValue(drive),
+						HasDriveUsage = driveUsage.HasUsage,
+						IsDriveUsageCritical = driveUsage.IsCritical,
+						DriveUsagePercentage = driveUsage.UsedPercentage,
 						ActivationPath = NormalizeFileSystemPath(drive.RootDirectory.FullName),
 						IsFolder = true
 					};
@@ -565,18 +622,131 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 			foreach (var file in EnumerateFilesSafe(activationPath))
 			{
+				var modifiedValue = omitSlowMetadata ? null : GetFileWriteTime(file);
+				var sizeValue = omitSlowMetadata ? null : GetFileSize(file);
+
 				yield return new FileItemState
 				{
 					Name = Path.GetFileName(file),
 					Glyph = "\uE8A5",
 					IconSource = includeIcons ? ShellIconCache.GetFileIcon(file) : null,
 					ItemType = BuildFileTypeLabel(file),
-					Modified = omitSlowMetadata ? string.Empty : FormatTimestamp(GetFileWriteTime(file)),
-					Size = omitSlowMetadata ? string.Empty : FormatFileSize(GetFileSize(file)),
+					Modified = FormatTimestamp(modifiedValue),
+					Size = FormatFileSize(sizeValue),
+					ModifiedValue = modifiedValue,
+					SizeValue = sizeValue,
 					ActivationPath = file,
 					IsFolder = false
 				};
 			}
+		}
+
+		private void ResortVisibleFiles()
+		{
+			if (Files.Count <= 1)
+			{
+				return;
+			}
+
+			var sortedItems = CreateSortedFileSequence(Files).ToList();
+			Files.Clear();
+
+			foreach (var item in sortedItems)
+			{
+				Files.Add(item);
+			}
+		}
+
+		private IEnumerable<FileItemState> CreateSortedFileSequence(IEnumerable<FileItemState> items)
+		{
+			var orderedItems = items.OrderBy(item => item.IsFolder ? 0 : 1);
+			var comparer = StringComparer.CurrentCultureIgnoreCase;
+
+			switch (m_fileSortColumn)
+			{
+				case FileSortColumn.Type:
+					orderedItems = m_fileSortAscending
+						? orderedItems.ThenBy(item => item.ItemType, comparer)
+						: orderedItems.ThenByDescending(item => item.ItemType, comparer);
+					break;
+
+				case FileSortColumn.Modified:
+					orderedItems = orderedItems.ThenBy(item => item.ModifiedValue.HasValue ? 0 : 1);
+					orderedItems = m_fileSortAscending
+						? orderedItems.ThenBy(item => item.ModifiedValue)
+						: orderedItems.ThenByDescending(item => item.ModifiedValue);
+					break;
+
+				case FileSortColumn.Size:
+					orderedItems = orderedItems.ThenBy(item => item.SizeValue.HasValue ? 0 : 1);
+					orderedItems = m_fileSortAscending
+						? orderedItems.ThenBy(item => item.SizeValue)
+						: orderedItems.ThenByDescending(item => item.SizeValue);
+					break;
+
+				default:
+					orderedItems = m_fileSortAscending
+						? orderedItems.ThenBy(item => item.Name, comparer)
+						: orderedItems.ThenByDescending(item => item.Name, comparer);
+					return orderedItems;
+			}
+
+			return orderedItems.ThenBy(item => item.Name, comparer);
+		}
+
+		private string GetSortGlyph(FileSortColumn column)
+		{
+			return m_fileSortColumn == column && !m_fileSortAscending
+				? SortDescendingGlyph
+				: SortAscendingGlyph;
+		}
+
+		private double GetSortIndicatorOpacity(FileSortColumn column)
+		{
+			return m_fileSortColumn == column ? 1.0 : 0.0;
+		}
+
+		private void NotifyFileSortStateChanged()
+		{
+			OnPropertyChanged(nameof(NameSortGlyph));
+			OnPropertyChanged(nameof(NameSortIndicatorOpacity));
+			OnPropertyChanged(nameof(TypeSortGlyph));
+			OnPropertyChanged(nameof(TypeSortIndicatorOpacity));
+			OnPropertyChanged(nameof(ModifiedSortGlyph));
+			OnPropertyChanged(nameof(ModifiedSortIndicatorOpacity));
+			OnPropertyChanged(nameof(SizeSortGlyph));
+			OnPropertyChanged(nameof(SizeSortIndicatorOpacity));
+		}
+
+		private void NotifyFileViewLayoutChanged()
+		{
+			OnPropertyChanged(nameof(FileListHeaderVisibility));
+			OnPropertyChanged(nameof(FileListVisibility));
+			OnPropertyChanged(nameof(ThisPcDriveGridVisibility));
+		}
+
+		private static bool TryGetSortColumn(string? sortColumnName, out FileSortColumn sortColumn)
+		{
+			sortColumn = sortColumnName switch
+			{
+				"Name" => FileSortColumn.Name,
+				"Type" => FileSortColumn.Type,
+				"Modified" => FileSortColumn.Modified,
+				"Size" => FileSortColumn.Size,
+				_ => FileSortColumn.Name
+			};
+
+			return sortColumnName is "Name" or "Type" or "Modified" or "Size";
+		}
+
+		private static bool GetDefaultSortDirection(FileSortColumn sortColumn)
+		{
+			return sortColumn switch
+			{
+				FileSortColumn.Modified => false,
+				FileSortColumn.Size => false,
+				_ => true
+			};
 		}
 
 		private void InitializeFolderPane()
@@ -992,11 +1162,58 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 					return string.Empty;
 				}
 
-				return $"{FormatFileSize(drive.AvailableFreeSpace)} free of {FormatFileSize(drive.TotalSize)}";
+				return $"{FormatDriveCapacityInGigabytes(drive.AvailableFreeSpace)} free of {FormatDriveCapacityInGigabytes(drive.TotalSize)}";
 			}
 			catch
 			{
 				return string.Empty;
+			}
+		}
+
+		private static string FormatDriveCapacityInGigabytes(long size)
+		{
+			double valueInGigabytes = size / 1024d / 1024d / 1024d;
+			return string.Format(CultureInfo.CurrentCulture, "{0:0.00} GB", valueInGigabytes);
+		}
+
+		private static (bool HasUsage, bool IsCritical, double UsedPercentage) BuildDriveUsageState(DriveInfo drive)
+		{
+			if (drive.DriveType == DriveType.Network)
+			{
+				return (false, false, 0);
+			}
+
+			try
+			{
+				if (!drive.IsReady || drive.TotalSize <= 0)
+				{
+					return (false, false, 0);
+				}
+
+				double freeRatio = Math.Clamp((double) drive.AvailableFreeSpace / drive.TotalSize, 0, 1);
+				double usedRatio = 1 - freeRatio;
+				return (true, freeRatio <= 0.10, usedRatio * 100);
+			}
+			catch
+			{
+				return (false, false, 0);
+			}
+		}
+
+		private static long? GetDriveCapacitySortValue(DriveInfo drive)
+		{
+			if (drive.DriveType == DriveType.Network)
+			{
+				return null;
+			}
+
+			try
+			{
+				return drive.IsReady ? drive.TotalSize : null;
+			}
+			catch
+			{
+				return null;
 			}
 		}
 
@@ -1041,6 +1258,11 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private static string FormatFileSize(long? size)
 		{
+			return FormatFileSize(size, 1);
+		}
+
+		private static string FormatFileSize(long? size, int fractionalDigits)
+		{
 			if (size == null)
 			{
 				return string.Empty;
@@ -1056,9 +1278,14 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				unitIndex++;
 			}
 
-			return unitIndex == 0
-				? string.Format(CultureInfo.CurrentCulture, "{0:0} {1}", value, units[unitIndex])
-				: string.Format(CultureInfo.CurrentCulture, "{0:0.#} {1}", value, units[unitIndex]);
+			if (unitIndex == 0)
+			{
+				return string.Format(CultureInfo.CurrentCulture, "{0:0} {1}", value, units[unitIndex]);
+			}
+
+			var decimals = new string('#', Math.Max(0, fractionalDigits));
+			var format = decimals.Length == 0 ? "0" : $"0.{decimals}";
+			return string.Format(CultureInfo.CurrentCulture, "{0:" + format + "} {1}", value, units[unitIndex]);
 		}
 
 		private static string GetDisplayTitle(string activationPath)

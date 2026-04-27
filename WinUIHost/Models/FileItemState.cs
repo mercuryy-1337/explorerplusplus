@@ -3,6 +3,7 @@
 // See LICENSE in the top level directory
 
 using ExplorerPlusPlus.WinUIHost.Infrastructure;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
 namespace ExplorerPlusPlus.WinUIHost.Models
@@ -15,8 +16,13 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		private string m_modified = string.Empty;
 		private string m_size = string.Empty;
 		private string m_activationPath = string.Empty;
+		private DateTimeOffset? m_modifiedValue;
+		private long? m_sizeValue;
 		private ImageSource? m_iconSource;
 		private bool m_isFolder;
+		private bool m_hasDriveUsage;
+		private bool m_isDriveUsageCritical;
+		private double m_driveUsagePercentage;
 
 		public string Name
 		{
@@ -54,6 +60,18 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 			set => SetProperty(ref m_activationPath, value);
 		}
 
+		public DateTimeOffset? ModifiedValue
+		{
+			get => m_modifiedValue;
+			set => SetProperty(ref m_modifiedValue, value);
+		}
+
+		public long? SizeValue
+		{
+			get => m_sizeValue;
+			set => SetProperty(ref m_sizeValue, value);
+		}
+
 		public ImageSource? IconSource
 		{
 			get => m_iconSource;
@@ -73,7 +91,43 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 			set => SetProperty(ref m_isFolder, value);
 		}
 
+		public bool HasDriveUsage
+		{
+			get => m_hasDriveUsage;
+			set
+			{
+				if (SetProperty(ref m_hasDriveUsage, value))
+				{
+					OnPropertyChanged(nameof(DriveUsageVisibility));
+					OnPropertyChanged(nameof(NormalDriveUsageVisibility));
+					OnPropertyChanged(nameof(CriticalDriveUsageVisibility));
+				}
+			}
+		}
+
+		public bool IsDriveUsageCritical
+		{
+			get => m_isDriveUsageCritical;
+			set
+			{
+				if (SetProperty(ref m_isDriveUsageCritical, value))
+				{
+					OnPropertyChanged(nameof(NormalDriveUsageVisibility));
+					OnPropertyChanged(nameof(CriticalDriveUsageVisibility));
+				}
+			}
+		}
+
+		public double DriveUsagePercentage
+		{
+			get => m_driveUsagePercentage;
+			set => SetProperty(ref m_driveUsagePercentage, value);
+		}
+
 		public double NativeIconOpacity => IconSource == null ? 0.0 : 1.0;
 		public double GlyphOpacity => IconSource == null ? 1.0 : 0.0;
+		public Visibility DriveUsageVisibility => HasDriveUsage ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility NormalDriveUsageVisibility => HasDriveUsage && !IsDriveUsageCritical ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility CriticalDriveUsageVisibility => HasDriveUsage && IsDriveUsageCritical ? Visibility.Visible : Visibility.Collapsed;
 	}
 }

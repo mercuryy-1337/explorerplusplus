@@ -2,6 +2,30 @@
 
 This changelog tracks the WinUI host line separately from the upstream Explorer++ history.
 
+## 1.1.0.4 - 2026-04-27
+
+### Added
+
+- Added clickable file-list headers for Type, Modified, and Size with visible ascending and descending arrows.
+- Added a clickable Name file-list header so the view can be sorted back by name without resetting the page.
+
+### Changed
+
+- Realigned the file-list header and detail rows so Type, Modified, and Size data sits directly under its matching column.
+- Added header-only divider lines between the file-list detail columns while keeping the same column boundaries flowing through every row.
+- Kept name sorting as the default file-list order and preserved the chosen column sort across refreshes.
+- Updated file-list header hover and pressed feedback so each sortable column highlights as one full rectangular block between dividers instead of only around the label text.
+- Changed This PC to use a native-style drive grid with a large icon on the left, the drive title beside it, a live usage bar in the middle row, and the free-space summary on the bottom row.
+- Rounded the This PC drive free-space summary to two decimal places and switch the usage bar to red when free space drops to 10% or lower.
+
+### Fixed
+
+- Fixed the WinUI host window icon path so Alt+Tab uses the ExplorerX app icon instead of falling back to a generic placeholder.
+
+### Packaging
+
+- Updated the WinUI host version from 1.1.0.3 to 1.1.0.4.
+
 ## 1.1.0.3 - 2026-04-27
 
 ### Fixed

@@ -34,6 +34,9 @@ namespace ExplorerPlusPlus.WinUIHost
 	public sealed partial class MainWindow : Window
 	{
 		private const string AppDisplayName = "ExplorerX";
+		private const uint WmSetIcon = 0x0080;
+		private static readonly IntPtr IconSmall = IntPtr.Zero;
+		private static readonly IntPtr IconBig = new(1);
 		private static readonly Brush s_transparentBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
 
 		private AppWindow? m_appWindow;
@@ -110,12 +113,14 @@ namespace ExplorerPlusPlus.WinUIHost
 
 		private void ConfigureWindowChrome()
 		{
+			var hwnd = WindowNative.GetWindowHandle(this);
+			ApplyWindowIcon(hwnd);
+
 			if (!AppWindowTitleBar.IsCustomizationSupported())
 			{
 				return;
 			}
 
-			var hwnd = WindowNative.GetWindowHandle(this);
 			var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
 			m_appWindow = AppWindow.GetFromWindowId(windowId);
 
@@ -326,6 +331,118 @@ namespace ExplorerPlusPlus.WinUIHost
 			if (sender is Button button)
 			{
 				ResetNavToolbarButtonBrush(button);
+			}
+		}
+
+		private static Border? GetFileListHeaderBackground(Button button)
+		{
+			if (button.Parent is Grid grid && grid.Children.Count > 0 && grid.Children[0] is Border background)
+			{
+				return background;
+			}
+
+			return null;
+		}
+
+		private static void SetFileListHeaderButtonBrush(Button button, string resourceKey)
+		{
+			if (GetFileListHeaderBackground(button) is Border background)
+			{
+				background.Background = ResolveThemeBrush(resourceKey);
+			}
+		}
+
+		private static void ResetFileListHeaderButtonBrush(Button button)
+		{
+			if (GetFileListHeaderBackground(button) is Border background)
+			{
+				background.Background = s_transparentBrush;
+			}
+		}
+
+		private void FileListHeaderButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button && button.IsEnabled)
+			{
+				SetFileListHeaderButtonBrush(button, "ShellNavButtonHoverBrush");
+			}
+		}
+
+		private void FileListHeaderButton_PointerExited(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetFileListHeaderButtonBrush(button);
+			}
+		}
+
+		private void FileListHeaderButton_PointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button && button.IsEnabled)
+			{
+				SetFileListHeaderButtonBrush(button, "ShellNavButtonPressedBrush");
+			}
+		}
+
+		private void FileListHeaderButton_PointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button && button.IsEnabled)
+			{
+				if (button.IsPointerOver)
+				{
+					SetFileListHeaderButtonBrush(button, "ShellNavButtonHoverBrush");
+				}
+				else
+				{
+					ResetFileListHeaderButtonBrush(button);
+				}
+			}
+		}
+
+		private void FileListHeaderButton_PointerCanceled(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetFileListHeaderButtonBrush(button);
+			}
+		}
+
+		private void FileListHeaderButton_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetFileListHeaderButtonBrush(button);
+			}
+		}
+
+		private static void ApplyWindowIcon(IntPtr hwnd)
+		{
+			if (string.IsNullOrWhiteSpace(Environment.ProcessPath))
+			{
+				return;
+			}
+
+			try
+			{
+				var iconCount = ExtractIconEx(Environment.ProcessPath, 0, out var largeIcon, out var smallIcon, 1);
+
+				if (iconCount == 0)
+				{
+					return;
+				}
+
+				if (smallIcon != IntPtr.Zero)
+				{
+					SendMessage(hwnd, WmSetIcon, IconSmall, smallIcon);
+				}
+
+				if (largeIcon != IntPtr.Zero)
+				{
+					SendMessage(hwnd, WmSetIcon, IconBig, largeIcon);
+				}
+			}
+			catch
+			{
 			}
 		}
 
@@ -672,9 +789,20 @@ namespace ExplorerPlusPlus.WinUIHost
 			if (e.Key == VirtualKey.Enter || e.Key == VirtualKey.Escape)
 			{
 				ViewModel.Navigation.IsPathTextVisible = false;
-				FilesListView.Focus(FocusState.Programmatic);
+				FocusCurrentItemsView();
 				e.Handled = true;
 			}
+		}
+
+		private void FocusCurrentItemsView()
+		{
+			if (ThisPcDrivesListView.Visibility == Visibility.Visible)
+			{
+				ThisPcDrivesListView.Focus(FocusState.Programmatic);
+				return;
+			}
+
+			FilesListView.Focus(FocusState.Programmatic);
 		}
 
 		private void FilesListView_ItemClick(object sender, ItemClickEventArgs e)
@@ -690,8 +818,15 @@ namespace ExplorerPlusPlus.WinUIHost
 		private const uint ShopFilePath = 0x00000002;
 		private const int SwShownormal = 1;
 
+		[DllImport("user32.dll", CharSet = CharSet.Unicode)]
+		private static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
+
 		[DllImport("shell32.dll")]
 		private static extern int SHGetDesktopFolder([MarshalAs(UnmanagedType.Interface)] out IShellFolder shellFolder);
+
+		[DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+		private static extern uint ExtractIconEx(string fileName, int iconIndex, out IntPtr largeIcon,
+			out IntPtr smallIcon, uint iconCount);
 
 		[DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
 		private static extern bool ShellExecuteEx(ref ShellExecuteInfo executeInfo);

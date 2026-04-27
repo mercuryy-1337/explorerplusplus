@@ -27,7 +27,7 @@
 
 ### File list
 - [x] Reuse the existing `ListViewModel` as the base seam for the file list.
-- [ ] Add a WinUI adapter for columns, items, sorting, and selection.
+- [x] Add a first WinUI adapter for file-list columns, item rows, and column sorting.
 - [ ] Keep the first WinUI file list focused on browsing and selection before secondary commands.
 
 ### Folders pane

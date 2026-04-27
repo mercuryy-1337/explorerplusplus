@@ -323,24 +323,96 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <Grid Margin="16,16,16,8" ColumnSpacing="12">
+                        <Grid Margin="16,16,16,8" MinHeight="32" Visibility="{Binding FileListHeaderVisibility}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="1" />
                                 <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="1" />
                                 <ColumnDefinition Width="160" />
+                                <ColumnDefinition Width="1" />
                                 <ColumnDefinition Width="120" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Name" />
-                            <TextBlock Grid.Column="1" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Type" />
-                            <TextBlock Grid.Column="2" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Modified" />
-                            <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Size" />
+                            <Grid Grid.Column="0">
+                                <Border Background="Transparent" />
+                                <Button Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Command="{Binding SortFilesCommand}" CommandParameter="Name" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" MinHeight="28" Padding="8,4,8,4" PointerEntered="FileListHeaderButton_PointerEntered" PointerExited="FileListHeaderButton_PointerExited" PointerPressed="FileListHeaderButton_PointerPressed" PointerReleased="FileListHeaderButton_PointerReleased" PointerCanceled="FileListHeaderButton_PointerCanceled" PointerCaptureLost="FileListHeaderButton_PointerCaptureLost" UseSystemFocusVisuals="False">
+                                    <Button.Resources>
+                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
+                                    </Button.Resources>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Name" VerticalAlignment="Center" />
+                                        <FontIcon Glyph="{Binding NameSortGlyph}" FontFamily="Segoe Fluent Icons" FontSize="10" Foreground="{ThemeResource ShellSecondaryTextBrush}" Opacity="{Binding NameSortIndicatorOpacity}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                            <Border Grid.Column="1" Margin="0,4,0,4" Background="{ThemeResource ShellBorderBrush}" />
+                            <Grid Grid.Column="2">
+                                <Border Background="Transparent" />
+                                <Button Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Command="{Binding SortFilesCommand}" CommandParameter="Type" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" MinHeight="28" Padding="14,4,8,4" PointerEntered="FileListHeaderButton_PointerEntered" PointerExited="FileListHeaderButton_PointerExited" PointerPressed="FileListHeaderButton_PointerPressed" PointerReleased="FileListHeaderButton_PointerReleased" PointerCanceled="FileListHeaderButton_PointerCanceled" PointerCaptureLost="FileListHeaderButton_PointerCaptureLost" UseSystemFocusVisuals="False">
+                                    <Button.Resources>
+                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
+                                    </Button.Resources>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Type" VerticalAlignment="Center" />
+                                        <FontIcon Glyph="{Binding TypeSortGlyph}" FontFamily="Segoe Fluent Icons" FontSize="10" Foreground="{ThemeResource ShellSecondaryTextBrush}" Opacity="{Binding TypeSortIndicatorOpacity}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                            <Border Grid.Column="3" Margin="0,4,0,4" Background="{ThemeResource ShellBorderBrush}" />
+                            <Grid Grid.Column="4">
+                                <Border Background="Transparent" />
+                                <Button Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Command="{Binding SortFilesCommand}" CommandParameter="Modified" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" MinHeight="28" Padding="14,4,8,4" PointerEntered="FileListHeaderButton_PointerEntered" PointerExited="FileListHeaderButton_PointerExited" PointerPressed="FileListHeaderButton_PointerPressed" PointerReleased="FileListHeaderButton_PointerReleased" PointerCanceled="FileListHeaderButton_PointerCanceled" PointerCaptureLost="FileListHeaderButton_PointerCaptureLost" UseSystemFocusVisuals="False">
+                                    <Button.Resources>
+                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
+                                    </Button.Resources>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Modified" VerticalAlignment="Center" />
+                                        <FontIcon Glyph="{Binding ModifiedSortGlyph}" FontFamily="Segoe Fluent Icons" FontSize="10" Foreground="{ThemeResource ShellSecondaryTextBrush}" Opacity="{Binding ModifiedSortIndicatorOpacity}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                            <Border Grid.Column="5" Margin="0,4,0,4" Background="{ThemeResource ShellBorderBrush}" />
+                            <Grid Grid.Column="6">
+                                <Border Background="Transparent" />
+                                <Button Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Command="{Binding SortFilesCommand}" CommandParameter="Size" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" MinHeight="28" Padding="14,4,8,4" PointerEntered="FileListHeaderButton_PointerEntered" PointerExited="FileListHeaderButton_PointerExited" PointerPressed="FileListHeaderButton_PointerPressed" PointerReleased="FileListHeaderButton_PointerReleased" PointerCanceled="FileListHeaderButton_PointerCanceled" PointerCaptureLost="FileListHeaderButton_PointerCaptureLost" UseSystemFocusVisuals="False">
+                                    <Button.Resources>
+                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+                                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
+                                    </Button.Resources>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="Size" VerticalAlignment="Center" />
+                                        <FontIcon Glyph="{Binding SizeSortGlyph}" FontFamily="Segoe Fluent Icons" FontSize="10" Foreground="{ThemeResource ShellSecondaryTextBrush}" Opacity="{Binding SizeSortIndicatorOpacity}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
                         </Grid>
 
-                        <ListView x:Name="FilesListView" Grid.Row="1" Margin="8,0,8,8" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick" ItemsSource="{Binding Files}">
+                        <ListView x:Name="FilesListView" Grid.Row="1" Margin="0,0,0,8" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick" ItemsSource="{Binding Files}" Visibility="{Binding FileListVisibility}">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Margin" Value="0" />
+                                    <Setter Property="MinHeight" Value="0" />
+                                    <Setter Property="Padding" Value="0" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Margin="8,2" Padding="8,8" ColumnSpacing="12">
+                                    <Grid Margin="16,2,16,2" Padding="0,8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="180" />
@@ -348,17 +420,76 @@
                                             <ColumnDefinition Width="120" />
                                         </Grid.ColumnDefinitions>
 
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                        <StackPanel Grid.Column="0" Margin="8,0,0,0" Orientation="Horizontal" Spacing="8">
                                             <Grid Width="16" Height="16" VerticalAlignment="Center">
                                                 <Image Width="16" Height="16" Opacity="{Binding NativeIconOpacity}" Source="{Binding IconSource}" Stretch="Uniform" />
                                                 <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{ThemeResource ShellTextBrush}" HorizontalAlignment="Center" Opacity="{Binding GlyphOpacity}" VerticalAlignment="Center" />
                                             </Grid>
                                             <TextBlock Foreground="{ThemeResource ShellTextBrush}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                         </StackPanel>
-                                        <TextBlock Grid.Column="1" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="{Binding ItemType}" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="2" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="{Binding Modified}" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="3" Foreground="{ThemeResource ShellSecondaryTextBrush}" HorizontalAlignment="Right" Text="{Binding Size}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Margin="14,0,8,0" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="{Binding ItemType}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="2" Margin="14,0,8,0" Foreground="{ThemeResource ShellSecondaryTextBrush}" Text="{Binding Modified}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="3" Margin="14,0,8,0" Foreground="{ThemeResource ShellSecondaryTextBrush}" HorizontalAlignment="Right" Text="{Binding Size}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                     </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <ListView x:Name="ThisPcDrivesListView" Grid.Row="1" Margin="12,12,12,16" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FilesListView_ItemClick" ItemsSource="{Binding Files}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="None" Visibility="{Binding ThisPcDriveGridVisibility}">
+                            <ListView.Resources>
+                                <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent" />
+                            </ListView.Resources>
+                            <ListView.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <ItemsWrapGrid Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ListView.ItemsPanel>
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Margin" Value="0" />
+                                    <Setter Property="MinHeight" Value="0" />
+                                    <Setter Property="Padding" Value="0" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="352" MinHeight="96" Margin="4,4,12,12" Padding="16,14" Background="{ThemeResource ShellInputBackgroundBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="10">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid Width="40" Height="40" Margin="0,2,16,0" VerticalAlignment="Top">
+                                                <Image Width="36" Height="36" Opacity="{Binding NativeIconOpacity}" Source="{Binding IconSource}" Stretch="Uniform" />
+                                                <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="30" Foreground="{ThemeResource ShellTextBrush}" HorizontalAlignment="Center" Opacity="{Binding GlyphOpacity}" VerticalAlignment="Center" />
+                                            </Grid>
+
+                                            <Grid Grid.Column="1">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+
+                                                <TextBlock Foreground="{ThemeResource ShellTextBrush}" FontSize="14" FontWeight="SemiBold" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+
+                                                <Grid Grid.Row="1" Margin="0,8,0,8" Visibility="{Binding DriveUsageVisibility}">
+                                                    <ProgressBar Height="8" Background="{ThemeResource ShellButtonBrush}" Foreground="{ThemeResource ShellAccentBrush}" Maximum="100" Minimum="0" Value="{Binding DriveUsagePercentage}" Visibility="{Binding NormalDriveUsageVisibility}" />
+                                                    <ProgressBar Height="8" Background="{ThemeResource ShellButtonBrush}" Foreground="{ThemeResource ShellCriticalBrush}" Maximum="100" Minimum="0" Value="{Binding DriveUsagePercentage}" Visibility="{Binding CriticalDriveUsageVisibility}" />
+                                                </Grid>
+
+                                                <TextBlock Grid.Row="2" Foreground="{ThemeResource ShellSecondaryTextBrush}" FontSize="12" Text="{Binding Size}" TextTrimming="CharacterEllipsis" />
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
