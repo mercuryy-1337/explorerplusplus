@@ -5,6 +5,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.Win32;
 using System;
 using System.IO;
@@ -20,6 +21,7 @@ namespace ExplorerPlusPlus.WinUIHost
 		private static readonly string LogPath = Path.Combine(
 			Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory,
 			"startup.log");
+		private static readonly Brush s_transparentBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
 
 		private AppWindow? m_appWindow;
 		private ShellRootViewModel ViewModel { get; }
@@ -62,6 +64,14 @@ namespace ExplorerPlusPlus.WinUIHost
 			var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
 			m_appWindow = AppWindow.GetFromWindowId(windowId);
 
+			try
+			{
+				SystemBackdrop = new DesktopAcrylicBackdrop();
+			}
+			catch
+			{
+				SystemBackdrop = new MicaBackdrop();
+			}
 			ExtendsContentIntoTitleBar = true;
 			SetTitleBar(AppTitleBar);
 			UpdateTitleBarInsets();
@@ -166,6 +176,82 @@ namespace ExplorerPlusPlus.WinUIHost
 			catch (Exception reflectionEx)
 			{
 				AppendLog($"{prefix} reflection failure: {reflectionEx}");
+			}
+		}
+
+		private static Brush ResolveThemeBrush(string key)
+		{
+			if (Application.Current.Resources.TryGetValue(key, out var resource)
+				&& resource is Brush brush)
+			{
+				return brush;
+			}
+
+			return s_transparentBrush;
+		}
+
+		private static void SetNavToolbarButtonBrush(Button button, string resourceKey)
+		{
+			button.Background = ResolveThemeBrush(resourceKey);
+		}
+
+		private static void ResetNavToolbarButtonBrush(Button button)
+		{
+			button.Background = s_transparentBrush;
+		}
+
+		private void NavToolbarButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button && button.IsEnabled)
+			{
+				SetNavToolbarButtonBrush(button, "ShellNavButtonHoverBrush");
+			}
+		}
+
+		private void NavToolbarButton_PointerExited(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetNavToolbarButtonBrush(button);
+			}
+		}
+
+		private void NavToolbarButton_PointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button && button.IsEnabled)
+			{
+				SetNavToolbarButtonBrush(button, "ShellNavButtonPressedBrush");
+			}
+		}
+
+		private void NavToolbarButton_PointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button && button.IsEnabled)
+			{
+				if (button.IsPointerOver)
+				{
+					SetNavToolbarButtonBrush(button, "ShellNavButtonHoverBrush");
+				}
+				else
+				{
+					ResetNavToolbarButtonBrush(button);
+				}
+			}
+		}
+
+		private void NavToolbarButton_PointerCanceled(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetNavToolbarButtonBrush(button);
+			}
+		}
+
+		private void NavToolbarButton_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is Button button)
+			{
+				ResetNavToolbarButtonBrush(button);
 			}
 		}
 

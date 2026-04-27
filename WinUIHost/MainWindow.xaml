@@ -4,12 +4,15 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ExplorerPlusPlus.WinUIHost.Controls"
     Title="Explorer++ WinUI Host">
-    <Grid x:Name="RootLayout" Background="{ThemeResource ShellChromeBrush}">
+    <Grid x:Name="RootLayout" Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
+
+        <Border Grid.RowSpan="2" Background="{ThemeResource ShellTopBarBrush}" />
+        <Border Grid.Row="2" Background="{ThemeResource ShellChromeBrush}" />
 
         <Grid x:Name="AppTitleBar" Grid.Row="0" Height="44">
             <Grid.ColumnDefinitions>
@@ -45,18 +48,14 @@
             </ItemsControl>
         </Grid>
 
-        <Grid Grid.Row="1" Margin="16,10,16,0" ColumnSpacing="8">
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="16,10,16,10" ColumnSpacing="8">
                 <Grid.Resources>
-                    <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
-                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#26FFFFFF" />
-                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#36FFFFFF" />
-                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
-                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="{ThemeResource ShellTextBrush.Color}" />
-                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="{ThemeResource ShellTextBrush.Color}" />
-                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
-                    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
                     <Style x:Key="NavToolbarButtonStyle" TargetType="Button">
                         <Setter Property="Width" Value="30" />
                         <Setter Property="Height" Value="30" />
@@ -78,16 +77,16 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoBackCommand}" IsEnabled="{Binding Navigation.CanGoBack}">
+                <Button Grid.Column="0" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoBackCommand}" IsEnabled="{Binding Navigation.CanGoBack}" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
                     <FontIcon Glyph="&#xE72B;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
                 </Button>
-                <Button Grid.Column="1" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoForwardCommand}" IsEnabled="{Binding Navigation.CanGoForward}">
+                <Button Grid.Column="1" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoForwardCommand}" IsEnabled="{Binding Navigation.CanGoForward}" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
                     <FontIcon Glyph="&#xE72A;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
                 </Button>
-                <Button Grid.Column="2" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoUpCommand}" IsEnabled="{Binding Navigation.CanGoUp}">
+                <Button Grid.Column="2" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoUpCommand}" IsEnabled="{Binding Navigation.CanGoUp}" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
                     <FontIcon Glyph="&#xE74A;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
                 </Button>
-                <Button Grid.Column="3" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding RefreshCommand}" IsEnabled="{Binding Navigation.CanRefresh}">
+                <Button Grid.Column="3" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding RefreshCommand}" IsEnabled="{Binding Navigation.CanRefresh}" PointerEntered="NavToolbarButton_PointerEntered" PointerExited="NavToolbarButton_PointerExited" PointerPressed="NavToolbarButton_PointerPressed" PointerReleased="NavToolbarButton_PointerReleased" PointerCanceled="NavToolbarButton_PointerCanceled" PointerCaptureLost="NavToolbarButton_PointerCaptureLost">
                     <FontIcon Glyph="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
                 </Button>
 
@@ -112,6 +111,9 @@
                         <TextBox x:Name="AddressPathTextBox" Margin="12,0" Padding="0,9,0,7" Background="Transparent" BorderThickness="0" Foreground="{ThemeResource ShellTextBrush}" IsReadOnly="True" KeyDown="AddressPathTextBox_KeyDown" LostFocus="AddressPathTextBox_LostFocus" Text="{Binding Navigation.PathText}" Visibility="{Binding Navigation.PathTextVisibility}" />
                     </Grid>
                 </Border>
+            </Grid>
+
+            <Border Grid.Row="1" Margin="16,0,16,0" Height="1" Background="{ThemeResource ShellBorderBrush}" />
         </Grid>
 
         <Grid Grid.Row="2" Margin="16,0,16,16" ColumnSpacing="20">
