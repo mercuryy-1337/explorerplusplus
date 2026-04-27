@@ -318,6 +318,20 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			Navigation.CanGoForward = m_forwardHistory.Count > 0;
 			Navigation.CanGoUp = CanGoUp();
 			Navigation.CanRefresh = true;
+			Navigation.CanShowPathText = IsFileSystemPath(m_currentActivationPath);
+			Navigation.PathText = Navigation.CanShowPathText ? NormalizeFileSystemPath(m_currentActivationPath) : string.Empty;
+			Navigation.IsPathTextVisible = false;
+			RefreshNavigationBreadcrumbs();
+		}
+
+		private void RefreshNavigationBreadcrumbs()
+		{
+			Navigation.BreadcrumbSegments.Clear();
+
+			foreach (var segment in BuildNavigationSegments(m_currentActivationPath))
+			{
+				Navigation.BreadcrumbSegments.Add(segment);
+			}
 		}
 
 		private void RefreshFoldersPane()
@@ -1071,6 +1085,129 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			}
 
 			return activationPath;
+		}
+
+		private static IEnumerable<NavigationSegmentState> BuildNavigationSegments(string activationPath)
+		{
+			if (IsHomeLocation(activationPath))
+			{
+				yield return new NavigationSegmentState
+				{
+					Glyph = "\uE80F"
+				};
+				yield break;
+			}
+
+			yield return new NavigationSegmentState
+			{
+				Glyph = "\uE7F8"
+			};
+
+			if (IsThisPcLocation(activationPath))
+			{
+				yield return new NavigationSegmentState
+				{
+					Text = "This PC",
+					ShowSeparator = true
+				};
+				yield break;
+			}
+
+			if (!IsFileSystemPath(activationPath))
+			{
+				yield return new NavigationSegmentState
+				{
+					Text = GetDisplayTitle(activationPath),
+					ShowSeparator = true
+				};
+				yield break;
+			}
+
+			var normalizedPath = NormalizeFileSystemPath(activationPath);
+			var knownFolder = FindKnownFolderDefinition(normalizedPath);
+
+			if (!string.IsNullOrWhiteSpace(knownFolder.ActivationPath))
+			{
+				yield return new NavigationSegmentState
+				{
+					Text = knownFolder.Title,
+					ShowSeparator = true
+				};
+
+				foreach (var segment in BuildRelativeNavigationSegments(normalizedPath, knownFolder.ActivationPath))
+				{
+					yield return segment;
+				}
+
+				yield break;
+			}
+
+			yield return new NavigationSegmentState
+			{
+				Text = "This PC",
+				ShowSeparator = true
+			};
+
+			var rootPath = Path.GetPathRoot(normalizedPath);
+
+			if (string.IsNullOrWhiteSpace(rootPath))
+			{
+				yield break;
+			}
+
+			var normalizedRootPath = NormalizeFileSystemPath(rootPath);
+			yield return new NavigationSegmentState
+			{
+				Text = GetDriveBreadcrumbTitle(normalizedRootPath),
+				ShowSeparator = true
+			};
+
+			foreach (var segment in BuildRelativeNavigationSegments(normalizedPath, normalizedRootPath))
+			{
+				yield return segment;
+			}
+		}
+
+		private static (string Title, string ActivationPath, string Glyph) FindKnownFolderDefinition(string activationPath)
+		{
+			return BuildKnownFolderDefinitions()
+				.Where(definition => IsFileSystemBranch(activationPath, definition.ActivationPath))
+				.OrderByDescending(definition => definition.ActivationPath.Length)
+				.FirstOrDefault();
+		}
+
+		private static IEnumerable<NavigationSegmentState> BuildRelativeNavigationSegments(string fullPath,
+			string rootPath)
+		{
+			var relativePath = Path.GetRelativePath(rootPath, fullPath);
+
+			if (string.IsNullOrWhiteSpace(relativePath) || PathsEqual(relativePath, "."))
+			{
+				yield break;
+			}
+
+			foreach (var segmentText in relativePath.Split(
+				new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+				StringSplitOptions.RemoveEmptyEntries))
+			{
+				yield return new NavigationSegmentState
+				{
+					Text = segmentText,
+					ShowSeparator = true
+				};
+			}
+		}
+
+		private static string GetDriveBreadcrumbTitle(string drivePath)
+		{
+			try
+			{
+				return BuildDriveTitle(new DriveInfo(drivePath));
+			}
+			catch
+			{
+				return GetFileSystemDisplayName(drivePath);
+			}
 		}
 
 		private static string GetLocationGlyph(string activationPath)

@@ -54,8 +54,26 @@
                     <FontIcon Glyph="&#xE72C;" FontFamily="Segoe Fluent Icons" Foreground="{ThemeResource ShellTextBrush}" />
                 </Button>
 
-                <Border Grid.Column="4" Background="{ThemeResource ShellInputBackgroundBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="8">
-                    <TextBox Background="Transparent" BorderThickness="0" Foreground="{ThemeResource ShellTextBrush}" IsReadOnly="True" Text="{Binding Navigation.CurrentPath}" />
+                <Border Grid.Column="4" Background="{ThemeResource ShellInputBackgroundBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="8" Tapped="AddressBar_Tapped">
+                    <Grid MinHeight="36">
+                        <ItemsControl Margin="12,0" ItemsSource="{Binding Navigation.BreadcrumbSegments}" VerticalAlignment="Center" Visibility="{Binding Navigation.BreadcrumbVisibility}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE76C;" FontFamily="Segoe Fluent Icons" FontSize="10" Foreground="{ThemeResource ShellSecondaryTextBrush}" VerticalAlignment="Center" Visibility="{Binding SeparatorVisibility}" />
+                                        <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{ThemeResource ShellTextBrush}" VerticalAlignment="Center" Visibility="{Binding GlyphVisibility}" />
+                                        <TextBlock Foreground="{ThemeResource ShellTextBrush}" Text="{Binding Text}" VerticalAlignment="Center" Visibility="{Binding TextVisibility}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBox x:Name="AddressPathTextBox" Margin="12,0" Padding="0,9,0,7" Background="Transparent" BorderThickness="0" Foreground="{ThemeResource ShellTextBrush}" IsReadOnly="True" KeyDown="AddressPathTextBox_KeyDown" LostFocus="AddressPathTextBox_LostFocus" Text="{Binding Navigation.PathText}" Visibility="{Binding Navigation.PathTextVisibility}" />
+                    </Grid>
                 </Border>
             </Grid>
         </Border>
@@ -89,7 +107,7 @@
                         <DataTemplate>
                             <Grid Margin="0,0,0,2">
                                 <TextBlock Margin="16,12,16,5" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ShellSidebarSectionBrush}" Text="{Binding Title}" TextWrapping="Wrap" Visibility="{Binding HeaderVisibility}" />
-                                <controls:HoverCursorGrid Height="36" PointerEntered="FolderPaneRow_PointerEntered" PointerExited="FolderPaneRow_PointerExited" Visibility="{Binding RowVisibility}">
+                                <controls:HoverCursorGrid Height="36" PointerEntered="FolderPaneRow_PointerEntered" PointerExited="FolderPaneRow_PointerExited" PointerPressed="FolderPaneRow_PointerPressed" Visibility="{Binding RowVisibility}">
                                     <Border Margin="6,0" Background="{ThemeResource ShellSelectionBrush}" CornerRadius="9" Opacity="{Binding RowBackgroundOpacity}" />
                                     <Grid Margin="{Binding IndentMargin}" VerticalAlignment="Center">
                                         <Grid.ColumnDefinitions>

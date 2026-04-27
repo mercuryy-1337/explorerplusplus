@@ -1,5 +1,6 @@
 using ExplorerPlusPlus.WinUIHost.Models;
 using ExplorerPlusPlus.WinUIHost.ViewModels;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -8,6 +9,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using Windows.System;
 
 namespace ExplorerPlusPlus.WinUIHost
 {
@@ -105,7 +107,9 @@ namespace ExplorerPlusPlus.WinUIHost
 		{
 			if (e.ClickedItem is FolderPaneItemState folder)
 			{
-				ViewModel.ActivateFolderCommand.Execute(folder);
+				ViewModel.SelectFolderCommand.Execute(folder);
+				Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(
+					() => ViewModel.ActivateFolderCommand.Execute(folder));
 			}
 		}
 
@@ -131,6 +135,44 @@ namespace ExplorerPlusPlus.WinUIHost
 			if (sender is FrameworkElement element && element.DataContext is FolderPaneItemState folder)
 			{
 				folder.IsPointerOver = false;
+			}
+		}
+
+		private void FolderPaneRow_PointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			if (sender is FrameworkElement element && element.DataContext is FolderPaneItemState folder)
+			{
+				ViewModel.SelectFolderCommand.Execute(folder);
+			}
+		}
+
+		private void AddressBar_Tapped(object sender, TappedRoutedEventArgs e)
+		{
+			if (!ViewModel.Navigation.CanShowPathText || ViewModel.Navigation.IsPathTextVisible)
+			{
+				return;
+			}
+
+			ViewModel.Navigation.IsPathTextVisible = true;
+			Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+			{
+				AddressPathTextBox.Focus(FocusState.Programmatic);
+				AddressPathTextBox.SelectAll();
+			});
+		}
+
+		private void AddressPathTextBox_LostFocus(object sender, RoutedEventArgs e)
+		{
+			ViewModel.Navigation.IsPathTextVisible = false;
+		}
+
+		private void AddressPathTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
+		{
+			if (e.Key == VirtualKey.Enter || e.Key == VirtualKey.Escape)
+			{
+				ViewModel.Navigation.IsPathTextVisible = false;
+				FilesListView.Focus(FocusState.Programmatic);
+				e.Handled = true;
 			}
 		}
 

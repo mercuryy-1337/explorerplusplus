@@ -4,7 +4,7 @@ param(
 	[string]$Platform = "x64",
 	[bool]$BuildWinUIHost = $true,
 	[bool]$WinUIHostSelfContained = $true,
-	[bool]$WinUIHostSingleFile = $false,
+	[bool]$WinUIHostSingleFile = $true,
 	[bool]$WinUIHostCompressSingleFile = $true
 )
 
@@ -98,6 +98,8 @@ if ($BuildWinUIHost)
 			"-o",
 			$winUiReleaseDir,
 			"-p:Platform=$Platform",
+			"-p:DebugSymbols=false",
+			"-p:DebugType=None",
 			"-p:SelfContained=$WinUIHostSelfContained",
 			"-p:WindowsAppSDKSelfContained=$WinUIHostSelfContained",
 			"-p:PublishSingleFile=$WinUIHostSingleFile",
