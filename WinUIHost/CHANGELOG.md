@@ -2,6 +2,23 @@
 
 This changelog tracks the WinUI host line separately from the upstream Explorer++ history.
 
+## 1.1.0.1 - 2026-04-27
+
+### Added
+
+- Added a reusable acrylic-styled WinUI context menu builder so the same right-click flyout pattern can be reused on future shell surfaces.
+- Added a left folder-pane item context menu with Expand, Open in CMD, Copy as path, Send to, Copy, New, and Properties entries.
+
+### Changed
+
+- Updated the folder pane so the right-click menu only opens when a real item row is targeted.
+- Updated the WinUIHost `.cs` and `.xaml` files to include the Explorer++ GPL header block.
+- Refined the new folder-pane context menu with smaller text, wider symmetric side padding, and a background treatment that matches the app top bar more closely.
+
+### Packaging
+
+- Updated the WinUI host version from 1.1.0.0 to 1.1.0.1.
+
 ## 1.1.0.0 - 2026-04-27
 
 ### Added

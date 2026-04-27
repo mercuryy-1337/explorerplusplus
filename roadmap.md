@@ -33,6 +33,7 @@
 ### Folders pane
 - [x] Add a UI-neutral folders pane model around current location, This PC, and drives.
 - [x] Seed a Files-inspired flat sidebar shape for the first WinUI host scaffold.
+- [x] Add a reusable WinUI context-menu builder for left-pane item commands.
 - [ ] Add a WinUI adapter for lazy expansion, selection, and folder activation.
 - [ ] Keep shell-specific drag/drop and context-menu behavior behind adapters.
 

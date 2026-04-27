@@ -1,18 +1,28 @@
+// Copyright (C) Explorer++ Project
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the top level directory
+
+using ExplorerPlusPlus.WinUIHost.Controls;
 using ExplorerPlusPlus.WinUIHost.Models;
 using ExplorerPlusPlus.WinUIHost.ViewModels;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Win32;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.Versioning;
 using System.Text;
+using System.Threading.Tasks;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
+using Windows.Storage;
 using Windows.UI.ViewManagement;
 using WinRT.Interop;
 
@@ -367,6 +377,186 @@ namespace ExplorerPlusPlus.WinUIHost
 			if (sender is FrameworkElement element && element.DataContext is FolderPaneItemState folder)
 			{
 				ViewModel.SelectFolderCommand.Execute(folder);
+			}
+		}
+
+		private void FolderPaneRow_RightTapped(object sender, RightTappedRoutedEventArgs e)
+		{
+			if (sender is not FrameworkElement element || element.DataContext is not FolderPaneItemState folder
+				|| folder.IsHeader)
+			{
+				return;
+			}
+
+			ViewModel.SelectFolderCommand.Execute(folder);
+			var flyout = ShellContextMenuBuilder.Build(CreateFolderPaneContextMenuItems(folder));
+			flyout.ShowAt(element, new FlyoutShowOptions
+			{
+				Position = e.GetPosition(element)
+			});
+			e.Handled = true;
+		}
+
+		private ShellContextMenuItem[] CreateFolderPaneContextMenuItems(FolderPaneItemState folder)
+		{
+			var hasExistingFolderPath = TryGetExistingFolderPath(folder, out var folderPath);
+			var effectiveFolderPath = folderPath ?? string.Empty;
+
+			return new[]
+			{
+				new ShellContextMenuItem("Expand", () => ViewModel.ToggleFolderExpansionCommand.Execute(folder))
+				{
+					IsEnabled = folder.CanExpand && !folder.IsExpanded
+				},
+				ShellContextMenuItem.Separator(),
+				new ShellContextMenuItem("Open in CMD", () => OpenFolderInCommandPrompt(effectiveFolderPath))
+				{
+					IsEnabled = hasExistingFolderPath
+				},
+				ShellContextMenuItem.Separator(),
+				new ShellContextMenuItem("Copy as path", () => CopyTextToClipboard(QuotePath(effectiveFolderPath)))
+				{
+					IsEnabled = hasExistingFolderPath
+				},
+				new ShellContextMenuItem("Send to")
+				{
+					IsEnabled = hasExistingFolderPath,
+					Items = new[]
+					{
+						new ShellContextMenuItem("Coming soon")
+						{
+							IsEnabled = false
+						}
+					}
+				},
+				new ShellContextMenuItem("Copy", () => _ = CopyFolderToClipboardAsync(effectiveFolderPath))
+				{
+					IsEnabled = hasExistingFolderPath
+				},
+				new ShellContextMenuItem("New")
+				{
+					IsEnabled = hasExistingFolderPath,
+					Items = new[]
+					{
+						new ShellContextMenuItem("Folder", () => CreateFolder(folder, effectiveFolderPath))
+						{
+							IsEnabled = hasExistingFolderPath
+						}
+					}
+				},
+				ShellContextMenuItem.Separator(),
+				new ShellContextMenuItem("Properties", () => ShowFolderProperties(effectiveFolderPath))
+				{
+					IsEnabled = hasExistingFolderPath
+				}
+			};
+		}
+
+		private static bool TryGetExistingFolderPath(FolderPaneItemState folder, out string? folderPath)
+		{
+			folderPath = string.IsNullOrWhiteSpace(folder.ActivationPath)
+				? null
+				: folder.ActivationPath;
+
+			if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+			{
+				folderPath = null;
+				return false;
+			}
+
+			return true;
+		}
+
+		private static string QuotePath(string path)
+		{
+			return $"\"{path}\"";
+		}
+
+		private static void OpenFolderInCommandPrompt(string folderPath)
+		{
+			try
+			{
+				Process.Start(new ProcessStartInfo
+				{
+					FileName = "cmd.exe",
+					Arguments = $"/K cd /d {QuotePath(folderPath)}",
+					UseShellExecute = true,
+					WorkingDirectory = folderPath
+				});
+			}
+			catch
+			{
+			}
+		}
+
+		private static void CopyTextToClipboard(string text)
+		{
+			var package = new DataPackage();
+			package.SetText(text);
+			Clipboard.SetContent(package);
+			Clipboard.Flush();
+		}
+
+		private static async Task CopyFolderToClipboardAsync(string folderPath)
+		{
+			try
+			{
+				var storageFolder = await StorageFolder.GetFolderFromPathAsync(folderPath);
+				var package = new DataPackage
+				{
+					RequestedOperation = DataPackageOperation.Copy
+				};
+
+				package.SetStorageItems(new[] { storageFolder });
+				Clipboard.SetContent(package);
+				Clipboard.Flush();
+			}
+			catch
+			{
+			}
+		}
+
+		private void CreateFolder(FolderPaneItemState folder, string parentPath)
+		{
+			try
+			{
+				var newFolderPath = GetUniqueNewFolderPath(parentPath);
+				Directory.CreateDirectory(newFolderPath);
+				folder.CanExpand = true;
+				ViewModel.RefreshCommand.Execute(null);
+			}
+			catch
+			{
+			}
+		}
+
+		private static string GetUniqueNewFolderPath(string parentPath)
+		{
+			const string baseFolderName = "New folder";
+			var candidatePath = Path.Combine(parentPath, baseFolderName);
+			var suffix = 2;
+
+			while (Directory.Exists(candidatePath) || File.Exists(candidatePath))
+			{
+				candidatePath = Path.Combine(parentPath, $"{baseFolderName} ({suffix++})");
+			}
+
+			return candidatePath;
+		}
+
+		private static void ShowFolderProperties(string folderPath)
+		{
+			try
+			{
+				Process.Start(new ProcessStartInfo
+				{
+					FileName = folderPath,
+					UseShellExecute = true,
+					Verb = "properties"
+				});
+			}
+			catch
+			{
 			}
 		}
 

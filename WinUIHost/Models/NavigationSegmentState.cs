@@ -1,3 +1,7 @@
+// Copyright (C) Explorer++ Project
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the top level directory
+
 using ExplorerPlusPlus.WinUIHost.Infrastructure;
 using Microsoft.UI.Xaml;
 

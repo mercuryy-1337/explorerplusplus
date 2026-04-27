@@ -1,3 +1,8 @@
+<!--
+// Copyright (C) Explorer++ Project
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the top level directory
+-->
 <Window
     x:Class="ExplorerPlusPlus.WinUIHost.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -160,7 +165,7 @@
                                     <Border Height="1" Background="{ThemeResource ShellBorderBrush}" Margin="0,6,0,10" />
                                     <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ShellSidebarSectionBrush}" Text="{Binding Title}" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <controls:HoverCursorGrid Height="36" PointerEntered="FolderPaneRow_PointerEntered" PointerExited="FolderPaneRow_PointerExited" PointerPressed="FolderPaneRow_PointerPressed" Visibility="{Binding RowVisibility}">
+                                <controls:HoverCursorGrid Height="36" PointerEntered="FolderPaneRow_PointerEntered" PointerExited="FolderPaneRow_PointerExited" PointerPressed="FolderPaneRow_PointerPressed" RightTapped="FolderPaneRow_RightTapped" Visibility="{Binding RowVisibility}">
                                     <Border Margin="6,0" Background="{ThemeResource ShellSelectionBrush}" CornerRadius="9" Opacity="{Binding RowBackgroundOpacity}" />
                                     <Grid Margin="{Binding IndentMargin}" VerticalAlignment="Center">
                                         <Grid.ColumnDefinitions>
