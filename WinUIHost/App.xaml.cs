@@ -7,7 +7,9 @@ namespace ExplorerPlusPlus.WinUIHost
 {
 	public partial class App : Application
 	{
-		private static readonly string LogPath = Path.Combine(AppContext.BaseDirectory, "startup.log");
+		private static readonly string LogPath = Path.Combine(
+			Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory,
+			"startup.log");
 
 		public static MainWindow? ShellWindow { get; private set; }
 

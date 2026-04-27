@@ -66,37 +66,43 @@
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Margin="0,16,0,0" Background="{StaticResource ShellSidebarBrush}" BorderBrush="{StaticResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Margin="16,16,16,8" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ShellSecondaryTextBrush}" Text="Folders" TextWrapping="Wrap" />
-
-                    <ListView x:Name="FoldersPaneListView" Grid.Row="1" Margin="8,0,8,8" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FoldersPaneListView_ItemClick" ItemsSource="{Binding FolderPane}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectedItem="{Binding SelectedFolder, Mode=TwoWay}" SelectionChanged="FoldersPaneListView_SelectionChanged" SelectionMode="Single">
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Height="34">
-                                    <Border Margin="4,1" Background="{StaticResource ShellSelectionBrush}" CornerRadius="8" Opacity="{Binding SelectedBackgroundOpacity}" />
-                                    <Grid Margin="10,0" VerticalAlignment="Center">
+                <ListView x:Name="FoldersPaneListView" Margin="8,10,8,10" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FoldersPaneListView_ItemClick" ItemsSource="{Binding FolderPane}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="None">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Margin" Value="0" />
+                            <Setter Property="MinHeight" Value="0" />
+                            <Setter Property="Padding" Value="0" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,0,0,2">
+                                <TextBlock Margin="16,12,16,5" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ShellSidebarSectionBrush}" Text="{Binding Title}" TextWrapping="Wrap" Visibility="{Binding HeaderVisibility}" />
+                                <Grid Height="36" Visibility="{Binding RowVisibility}">
+                                    <Border Margin="6,0" Background="{StaticResource ShellSelectionBrush}" CornerRadius="9" Opacity="{Binding SelectedBackgroundOpacity}" />
+                                    <Grid Margin="{Binding IndentMargin}" VerticalAlignment="Center">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="5" />
+                                            <ColumnDefinition Width="6" />
                                             <ColumnDefinition Width="18" />
-                                            <ColumnDefinition Width="18" />
+                                            <ColumnDefinition Width="20" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
 
                                         <Border Grid.Column="0" Width="3" Height="16" Background="{StaticResource ShellAccentBrush}" CornerRadius="2" HorizontalAlignment="Left" Opacity="{Binding SelectionBarOpacity}" VerticalAlignment="Center" />
-                                        <FontIcon Grid.Column="1" Glyph="{Binding ExpandIndicator}" FontFamily="Segoe Fluent Icons" FontSize="10" Foreground="{StaticResource ShellSecondaryTextBrush}" HorizontalAlignment="Center" Opacity="{Binding ChevronOpacity}" VerticalAlignment="Center" />
+                                        <Grid Grid.Column="1" Width="18" Height="18" DataContext="{Binding}" IsHitTestVisible="{Binding ChevronHitTestVisible}" Opacity="{Binding ChevronOpacity}" Tapped="FolderPaneChevron_Tapped" VerticalAlignment="Center">
+                                            <FontIcon Glyph="{Binding ExpandIndicator}" FontFamily="Segoe Fluent Icons" FontSize="10" Foreground="{StaticResource ShellSecondaryTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Grid>
                                         <FontIcon Grid.Column="2" Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{StaticResource ShellTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="3" Margin="8,0,0,0" Foreground="{StaticResource ShellTextBrush}" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="3" Margin="10,0,10,0" Foreground="{StaticResource ShellTextBrush}" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                     </Grid>
                                 </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </Grid>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
             </Border>
 
             <Border Grid.Column="1" Margin="0,16,0,0" Background="{StaticResource ShellSurfaceBrush}" BorderBrush="{StaticResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">

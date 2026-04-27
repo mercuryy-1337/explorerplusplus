@@ -8,6 +8,7 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		private string m_title = string.Empty;
 		private string m_glyph = string.Empty;
 		private string m_activationPath = string.Empty;
+		private bool m_isHeader;
 		private bool m_canExpand;
 		private bool m_isExpanded;
 		private bool m_isSelected;
@@ -31,6 +32,25 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 			set => SetProperty(ref m_activationPath, value);
 		}
 
+		public bool IsHeader
+		{
+			get => m_isHeader;
+			set
+			{
+				if (SetProperty(ref m_isHeader, value))
+				{
+					OnPropertyChanged(nameof(HeaderVisibility));
+					OnPropertyChanged(nameof(RowVisibility));
+					OnPropertyChanged(nameof(IsInteractive));
+					OnPropertyChanged(nameof(ChevronHitTestVisible));
+					OnPropertyChanged(nameof(ExpandIndicator));
+					OnPropertyChanged(nameof(SelectedBackgroundOpacity));
+					OnPropertyChanged(nameof(SelectionBarOpacity));
+					OnPropertyChanged(nameof(ChevronOpacity));
+				}
+			}
+		}
+
 		public bool CanExpand
 		{
 			get => m_canExpand;
@@ -38,6 +58,7 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 			{
 				if (SetProperty(ref m_canExpand, value))
 				{
+					OnPropertyChanged(nameof(ChevronHitTestVisible));
 					OnPropertyChanged(nameof(ExpandIndicator));
 					OnPropertyChanged(nameof(SelectionBarOpacity));
 					OnPropertyChanged(nameof(ChevronOpacity));
@@ -81,10 +102,14 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 			}
 		}
 
-		public string ExpandIndicator => !CanExpand ? string.Empty : (IsExpanded ? "\uE70D" : "\uE76C");
-		public double SelectedBackgroundOpacity => IsSelected ? 1.0 : 0.0;
-		public double SelectionBarOpacity => IsSelected && !CanExpand ? 1.0 : 0.0;
-		public double ChevronOpacity => CanExpand ? 1.0 : 0.0;
-		public Thickness IndentMargin => new Thickness(12 + (Depth * 18), 0, 0, 0);
+		public string ExpandIndicator => !CanExpand || IsHeader ? string.Empty : (IsExpanded ? "\uE70D" : "\uE76C");
+		public double SelectedBackgroundOpacity => IsSelected && !IsHeader ? 1.0 : 0.0;
+		public double SelectionBarOpacity => IsSelected && !CanExpand && !IsHeader ? 1.0 : 0.0;
+		public double ChevronOpacity => CanExpand && !IsHeader ? 1.0 : 0.0;
+		public bool ChevronHitTestVisible => CanExpand && !IsHeader;
+		public bool IsInteractive => !IsHeader;
+		public Visibility HeaderVisibility => IsHeader ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility RowVisibility => IsHeader ? Visibility.Collapsed : Visibility.Visible;
+		public Thickness IndentMargin => new Thickness(12 + (Depth * 18), 0, 10, 0);
 	}
 }

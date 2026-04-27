@@ -11,7 +11,7 @@ $projectPath = Join-Path $solutionDir $ProjectRelativePath
 $releaseDir = Join-Path $repo "release"
 $winUiProjectPath = Join-Path $repo "WinUIHost\ExplorerPlusPlus.WinUIHost.csproj"
 $winUiReleaseDir = Join-Path $releaseDir "WinUIHost"
-$winUiBuildOutputDir = Join-Path $repo "WinUIHost\bin\$Platform\$Configuration\net8.0-windows10.0.22621.0\win-$Platform"
+$winUiRuntimeIdentifier = "win-$Platform"
 
 if (-not (Test-Path $projectPath))
 {
@@ -76,20 +76,13 @@ if ($BuildWinUIHost)
 	Push-Location $repo
 	try
 	{
-		dotnet build $winUiProjectPath -c $Configuration -p:Platform=$Platform /nologo
+		Get-ChildItem $winUiReleaseDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+		dotnet publish $winUiProjectPath -c $Configuration -r $winUiRuntimeIdentifier -o $winUiReleaseDir -p:Platform=$Platform -p:SelfContained=true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true -p:WindowsAppSDKSelfContained=true -p:EnableMsixTooling=true /nologo
 
 		if ($LASTEXITCODE -ne 0)
 		{
 			exit $LASTEXITCODE
 		}
-
-		if (-not (Test-Path $winUiBuildOutputDir))
-		{
-			throw "WinUI host build output directory not found: $winUiBuildOutputDir"
-		}
-
-		Get-ChildItem $winUiReleaseDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-		Copy-Item (Join-Path $winUiBuildOutputDir "*") $winUiReleaseDir -Recurse -Force
 		Remove-Item (Join-Path $winUiReleaseDir "startup.log") -Force -ErrorAction SilentlyContinue
 	}
 	finally

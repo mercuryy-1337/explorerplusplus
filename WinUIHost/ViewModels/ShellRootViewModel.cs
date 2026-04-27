@@ -181,13 +181,18 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private void SelectFolder(FolderPaneItemState? folder)
 		{
+			if (folder?.IsHeader == true)
+			{
+				return;
+			}
+
 			m_selectedFolderActivationPath = folder?.ActivationPath;
 			ApplyFolderSelectionState();
 		}
 
 		private void ActivateFolder(FolderPaneItemState? folder)
 		{
-			if (folder == null)
+			if (folder == null || folder.IsHeader)
 			{
 				return;
 			}
@@ -197,7 +202,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private void ToggleFolderExpansion(FolderPaneItemState? folder)
 		{
-			if (folder == null || !folder.CanExpand)
+			if (folder == null || folder.IsHeader || !folder.CanExpand)
 			{
 				return;
 			}
@@ -292,19 +297,45 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		private void RefreshFoldersPane()
 		{
 			var items = new List<FolderPaneItemState>();
+			var quickAccessLocations = BuildKnownFolderDefinitions().ToList();
 
-			foreach (var pinnedLocation in BuildPinnedLocationDefinitions())
+			items.Add(new FolderPaneItemState
+			{
+				Title = "Home",
+				Glyph = "\uE80F",
+				ActivationPath = HomeActivationPath,
+				CanExpand = false,
+				IsExpanded = false,
+				Depth = 0
+			});
+
+			if (quickAccessLocations.Count > 0)
 			{
 				items.Add(new FolderPaneItemState
 				{
-					Title = pinnedLocation.Title,
-					Glyph = pinnedLocation.Glyph,
-					ActivationPath = pinnedLocation.ActivationPath,
-					CanExpand = false,
-					IsExpanded = false,
-					Depth = 0
+					Title = "Quick access",
+					IsHeader = true
 				});
+
+				foreach (var pinnedLocation in quickAccessLocations)
+				{
+					items.Add(new FolderPaneItemState
+					{
+						Title = pinnedLocation.Title,
+						Glyph = pinnedLocation.Glyph,
+						ActivationPath = pinnedLocation.ActivationPath,
+						CanExpand = false,
+						IsExpanded = false,
+						Depth = 0
+					});
+				}
 			}
+
+			items.Add(new FolderPaneItemState
+			{
+				Title = "Devices and drives",
+				IsHeader = true
+			});
 
 			var thisPcItem = new FolderPaneItemState
 			{
@@ -343,6 +374,12 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 			foreach (var item in FolderPane)
 			{
+				if (item.IsHeader)
+				{
+					item.IsSelected = false;
+					continue;
+				}
+
 				item.IsSelected = PathsEqual(item.ActivationPath, selectedActivationPath);
 
 				if (item.IsSelected)

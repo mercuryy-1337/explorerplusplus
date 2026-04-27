@@ -16,6 +16,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <SelfContained Condition="'$(SelfContained)' == ''">true</SelfContained>
+    <IncludeAllContentForSelfExtract Condition="'$(IncludeAllContentForSelfExtract)' == ''">true</IncludeAllContentForSelfExtract>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <EnableMsixTooling>true</EnableMsixTooling>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260416003" />
   </ItemGroup>

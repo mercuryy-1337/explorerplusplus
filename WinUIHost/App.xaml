@@ -10,6 +10,7 @@
             <SolidColorBrush x:Key="ShellBorderBrush" Color="#E6E7EA" />
             <SolidColorBrush x:Key="ShellTextBrush" Color="#17181A" />
             <SolidColorBrush x:Key="ShellSecondaryTextBrush" Color="#61656F" />
+            <SolidColorBrush x:Key="ShellSidebarSectionBrush" Color="#70757F" />
             <SolidColorBrush x:Key="ShellSelectionBrush" Color="#E8F1FE" />
             <SolidColorBrush x:Key="ShellAccentBrush" Color="#0A64D6" />
         </ResourceDictionary>

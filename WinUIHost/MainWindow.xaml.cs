@@ -2,6 +2,7 @@ using ExplorerPlusPlus.WinUIHost.Models;
 using ExplorerPlusPlus.WinUIHost.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using System;
 using System.IO;
 using System.Reflection;
@@ -11,7 +12,9 @@ namespace ExplorerPlusPlus.WinUIHost
 {
 	public sealed partial class MainWindow : Window
 	{
-		private static readonly string LogPath = Path.Combine(AppContext.BaseDirectory, "startup.log");
+		private static readonly string LogPath = Path.Combine(
+			Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory,
+			"startup.log");
 
 		private ShellRootViewModel ViewModel { get; }
 
@@ -89,11 +92,12 @@ namespace ExplorerPlusPlus.WinUIHost
 			}
 		}
 
-		private void FoldersPaneListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+		private void FolderPaneChevron_Tapped(object sender, TappedRoutedEventArgs e)
 		{
-			if (sender is ListView listView && listView.SelectedItem is FolderPaneItemState folder)
+			if (sender is FrameworkElement element && element.DataContext is FolderPaneItemState folder)
 			{
-				ViewModel.SelectFolderCommand.Execute(folder);
+				ViewModel.ToggleFolderExpansionCommand.Execute(folder);
+				e.Handled = true;
 			}
 		}
 
