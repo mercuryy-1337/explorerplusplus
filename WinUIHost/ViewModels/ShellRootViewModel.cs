@@ -1095,6 +1095,12 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				{
 					Glyph = "\uE80F"
 				};
+
+				yield return new NavigationSegmentState
+				{
+					Text = "Home",
+					ShowSeparator = true
+				};
 				yield break;
 			}
 

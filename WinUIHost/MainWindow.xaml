@@ -45,7 +45,31 @@
             </ItemsControl>
         </Grid>
 
-        <Grid Grid.Row="1" Margin="16,10,16,0" ColumnSpacing="12">
+        <Grid Grid.Row="1" Margin="16,10,16,0" ColumnSpacing="8">
+                <Grid.Resources>
+                    <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
+                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#26FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#36FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
+                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="{ThemeResource ShellTextBrush.Color}" />
+                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="{ThemeResource ShellTextBrush.Color}" />
+                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                    <Style x:Key="NavToolbarButtonStyle" TargetType="Button">
+                        <Setter Property="Width" Value="30" />
+                        <Setter Property="Height" Value="30" />
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="MinWidth" Value="30" />
+                        <Setter Property="MinHeight" Value="30" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="BorderBrush" Value="Transparent" />
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="CornerRadius" Value="8" />
+                        <Setter Property="Foreground" Value="{ThemeResource ShellTextBrush}" />
+                    </Style>
+                </Grid.Resources>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -54,17 +78,17 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0" Width="36" Height="36" Padding="0" Background="{ThemeResource ShellButtonBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" Command="{Binding GoBackCommand}" Foreground="{ThemeResource ShellTextBrush}" IsEnabled="{Binding Navigation.CanGoBack}">
-                    <FontIcon Glyph="&#xE72B;" FontFamily="Segoe Fluent Icons" Foreground="{ThemeResource ShellTextBrush}" />
+                <Button Grid.Column="0" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoBackCommand}" IsEnabled="{Binding Navigation.CanGoBack}">
+                    <FontIcon Glyph="&#xE72B;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
                 </Button>
-                <Button Grid.Column="1" Width="36" Height="36" Padding="0" Background="{ThemeResource ShellButtonBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" Command="{Binding GoForwardCommand}" Foreground="{ThemeResource ShellTextBrush}" IsEnabled="{Binding Navigation.CanGoForward}">
-                    <FontIcon Glyph="&#xE72A;" FontFamily="Segoe Fluent Icons" Foreground="{ThemeResource ShellTextBrush}" />
+                <Button Grid.Column="1" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoForwardCommand}" IsEnabled="{Binding Navigation.CanGoForward}">
+                    <FontIcon Glyph="&#xE72A;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
                 </Button>
-                <Button Grid.Column="2" Width="36" Height="36" Padding="0" Background="{ThemeResource ShellButtonBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" Command="{Binding GoUpCommand}" Foreground="{ThemeResource ShellTextBrush}" IsEnabled="{Binding Navigation.CanGoUp}">
-                    <FontIcon Glyph="&#xE74A;" FontFamily="Segoe Fluent Icons" Foreground="{ThemeResource ShellTextBrush}" />
+                <Button Grid.Column="2" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding GoUpCommand}" IsEnabled="{Binding Navigation.CanGoUp}">
+                    <FontIcon Glyph="&#xE74A;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
                 </Button>
-                <Button Grid.Column="3" Width="36" Height="36" Padding="0" Background="{ThemeResource ShellButtonBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" Command="{Binding RefreshCommand}" Foreground="{ThemeResource ShellTextBrush}" IsEnabled="{Binding Navigation.CanRefresh}">
-                    <FontIcon Glyph="&#xE72C;" FontFamily="Segoe Fluent Icons" Foreground="{ThemeResource ShellTextBrush}" />
+                <Button Grid.Column="3" Style="{StaticResource NavToolbarButtonStyle}" Command="{Binding RefreshCommand}" IsEnabled="{Binding Navigation.CanRefresh}">
+                    <FontIcon Glyph="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="13" Foreground="{ThemeResource ShellTextBrush}" />
                 </Button>
 
                 <Border Grid.Column="4" Background="{ThemeResource ShellInputBackgroundBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="8" Tapped="AddressBar_Tapped">
