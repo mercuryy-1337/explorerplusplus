@@ -1,0 +1,77 @@
+<Window
+    x:Class="ExplorerPlusPlus.WinUIHost.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Explorer++ WinUI Host">
+    <Grid x:Name="RootLayout" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Padding="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ItemsControl Grid.Row="0" ItemsSource="{Binding Tabs}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="0,0,8,0" Padding="10,6" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <TextBlock Text="{Binding Title}" />
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <StackPanel Grid.Row="1" Margin="0,12,0,12" Orientation="Horizontal" Spacing="8">
+            <Button Content="Back" IsEnabled="{Binding Navigation.CanGoBack}" />
+            <Button Content="Forward" IsEnabled="{Binding Navigation.CanGoForward}" />
+            <Button Content="Up" IsEnabled="{Binding Navigation.CanGoUp}" />
+            <Button Content="Refresh" IsEnabled="{Binding Navigation.CanRefresh}" />
+            <TextBox Width="480" Text="{Binding Navigation.CurrentPath}" IsReadOnly="True" />
+        </StackPanel>
+
+        <Grid Grid.Row="2" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Padding="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Folders pane" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock Margin="0,4,0,12" Text="Files-style flat sidebar scaffold." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    <ListView ItemsSource="{Binding FolderPane}" SelectedItem="{Binding SelectedFolder, Mode=TwoWay}" BorderThickness="0" Background="Transparent">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="{Binding IndentMargin}" Padding="0,6" Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Width="10" Text="{Binding ExpandIndicator}" />
+                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Padding="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="File list" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock Margin="0,4,0,12" Text="Design-time placeholder data for the first host shell." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    <ListView ItemsSource="{Binding Files}" BorderThickness="0" Background="Transparent">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Padding="0,6">
+                                    <TextBlock Text="{Binding Name}" />
+                                    <TextBlock Text="{Binding ItemType}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

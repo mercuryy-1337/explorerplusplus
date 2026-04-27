@@ -1200,6 +1200,8 @@
     <ClCompile Include="Bookmarks\UI\BookmarkTreeViewContextMenu.cpp" />
     <ClCompile Include="Bookmarks\UI\BookmarkTreeViewNode.cpp" />
     <ClCompile Include="Bookmarks\UI\OrganizeBookmarksContextMenu.cpp" />
+    <ClCompile Include="BrowserFoldersPaneModel.cpp" />
+    <ClCompile Include="BrowserNavigationModel.cpp" />
     <ClCompile Include="BrowserTabStripModel.cpp" />
     <ClCompile Include="BrowserCommandTargetManager.cpp" />
     <ClCompile Include="BrowserWindow.cpp" />
@@ -1843,6 +1845,8 @@
     <ClInclude Include="SortMenuBuilder.h" />
     <ClInclude Include="SplitFileDialog.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="BrowserFoldersPaneModel.h" />
+    <ClInclude Include="BrowserNavigationModel.h" />
     <ClInclude Include="BrowserTabStripModel.h" />
     <ClInclude Include="Tab.h" />
     <ClInclude Include="TabBacking.h" />
