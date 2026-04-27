@@ -10,8 +10,10 @@ using Microsoft.Win32;
 using System;
 using System.IO;
 using System.Reflection;
+using System.Runtime.Versioning;
 using System.Text;
 using Windows.System;
+using Windows.UI.ViewManagement;
 using WinRT.Interop;
 
 namespace ExplorerPlusPlus.WinUIHost
@@ -24,6 +26,7 @@ namespace ExplorerPlusPlus.WinUIHost
 		private static readonly Brush s_transparentBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
 
 		private AppWindow? m_appWindow;
+		private readonly UISettings m_uiSettings = new();
 		private ShellRootViewModel ViewModel { get; }
 
 		public MainWindow()
@@ -32,13 +35,15 @@ namespace ExplorerPlusPlus.WinUIHost
 			{
 				AppendLog("MainWindow constructor start");
 				InitializeComponent();
-				ApplySystemTheme();
+				m_uiSettings.ColorValuesChanged += OnSystemColorValuesChanged;
+				ApplyCurrentThemeState();
 				ConfigureWindowChrome();
 				AppendLog("InitializeComponent complete");
 				Title = "Explorer++ WinUI Host";
 				ViewModel = new ShellRootViewModel();
 				AppendLog("ShellRootViewModel created");
 				RootLayout.DataContext = ViewModel;
+				RefreshNavToolbarButtonVisuals();
 				AppendLog("DataContext assigned");
 			}
 			catch (Exception ex)
@@ -51,6 +56,31 @@ namespace ExplorerPlusPlus.WinUIHost
 		private void ApplySystemTheme()
 		{
 			RootLayout.RequestedTheme = IsSystemDarkTheme() ? ElementTheme.Dark : ElementTheme.Light;
+		}
+
+		private void ApplyCurrentThemeState()
+		{
+			ApplySystemTheme();
+
+			if (m_appWindow != null)
+			{
+				ApplyTitleBarButtonColors();
+			}
+
+			RefreshNavToolbarButtonVisuals();
+		}
+
+		private void OnSystemColorValuesChanged(UISettings sender, object args)
+		{
+			DispatcherQueue.TryEnqueue(() => ApplyCurrentThemeState());
+		}
+
+		private void RefreshNavToolbarButtonVisuals()
+		{
+			UpdateNavToolbarButtonVisual(BackButton);
+			UpdateNavToolbarButtonVisual(ForwardButton);
+			UpdateNavToolbarButtonVisual(UpButton);
+			UpdateNavToolbarButtonVisual(RefreshButton);
 		}
 
 		private void ConfigureWindowChrome()
@@ -123,6 +153,7 @@ namespace ExplorerPlusPlus.WinUIHost
 			}
 		}
 
+		[SupportedOSPlatform("windows")]
 		private static bool IsSystemDarkTheme()
 		{
 			object? value = Registry.GetValue(
