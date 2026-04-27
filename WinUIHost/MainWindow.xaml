@@ -11,7 +11,9 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="16,16,16,0">
+        <Border Grid.RowSpan="3" Margin="16,16,16,16" Background="{ThemeResource ShellChromeBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="16" />
+
+        <Grid Grid.Row="0" Margin="28,12,28,0">
             <ItemsControl ItemsSource="{Binding Tabs}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -20,7 +22,7 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Margin="0,0,8,0" Padding="14,8" Background="{ThemeResource ShellSurfaceBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="8,8,0,0">
+                        <Border Margin="0,0,8,0" Padding="14,8" Background="{ThemeResource ShellInputBackgroundBrush}" CornerRadius="8,8,0,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{ThemeResource ShellSecondaryTextBrush}" />
                                 <TextBlock Text="{Binding Title}" Foreground="{ThemeResource ShellTextBrush}" />
@@ -31,8 +33,7 @@
             </ItemsControl>
         </Grid>
 
-        <Border Grid.Row="1" Margin="16,0,16,0" Padding="12" Background="{ThemeResource ShellSurfaceBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1">
-            <Grid ColumnSpacing="12">
+        <Grid Grid.Row="1" Margin="28,10,28,0" ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -75,17 +76,16 @@
                         <TextBox x:Name="AddressPathTextBox" Margin="12,0" Padding="0,9,0,7" Background="Transparent" BorderThickness="0" Foreground="{ThemeResource ShellTextBrush}" IsReadOnly="True" KeyDown="AddressPathTextBox_KeyDown" LostFocus="AddressPathTextBox_LostFocus" Text="{Binding Navigation.PathText}" Visibility="{Binding Navigation.PathTextVisibility}" />
                     </Grid>
                 </Border>
-            </Grid>
-        </Border>
+        </Grid>
 
-        <Grid Grid.Row="2" Margin="16,0,16,16" ColumnSpacing="16">
+        <Grid Grid.Row="2" Margin="28,0,28,28" ColumnSpacing="20">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="300" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Margin="0,16,0,0" Background="{ThemeResource ShellSidebarBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
-                <ListView x:Name="FoldersPaneListView" Margin="8,10,8,10" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FoldersPaneListView_ItemClick" ItemsSource="{Binding FolderPane}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="None">
+            <Grid Grid.Column="0" Margin="0,16,0,0">
+                <ListView x:Name="FoldersPaneListView" Margin="0,0,0,0" Background="Transparent" BorderThickness="0" IsItemClickEnabled="True" ItemClick="FoldersPaneListView_ItemClick" ItemsSource="{Binding FolderPane}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="None">
                     <ListView.Resources>
                         <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent" />
                         <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent" />
@@ -106,7 +106,10 @@
                     <ListView.ItemTemplate>
                         <DataTemplate>
                             <Grid Margin="0,0,0,2">
-                                <TextBlock Margin="16,12,16,5" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ShellSidebarSectionBrush}" Text="{Binding Title}" TextWrapping="Wrap" Visibility="{Binding HeaderVisibility}" />
+                                <StackPanel Margin="14,8,14,8" Visibility="{Binding HeaderVisibility}">
+                                    <Border Height="1" Background="{ThemeResource ShellBorderBrush}" Margin="0,6,0,10" />
+                                    <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ShellSidebarSectionBrush}" Text="{Binding Title}" TextWrapping="Wrap" />
+                                </StackPanel>
                                 <controls:HoverCursorGrid Height="36" PointerEntered="FolderPaneRow_PointerEntered" PointerExited="FolderPaneRow_PointerExited" PointerPressed="FolderPaneRow_PointerPressed" Visibility="{Binding RowVisibility}">
                                     <Border Margin="6,0" Background="{ThemeResource ShellSelectionBrush}" CornerRadius="9" Opacity="{Binding RowBackgroundOpacity}" />
                                     <Grid Margin="{Binding IndentMargin}" VerticalAlignment="Center">
@@ -132,7 +135,7 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
-            </Border>
+            </Grid>
 
             <Border Grid.Column="1" Margin="0,16,0,0" Background="{ThemeResource ShellSurfaceBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
                 <Grid>

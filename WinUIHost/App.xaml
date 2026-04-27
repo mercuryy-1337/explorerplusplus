@@ -8,6 +8,7 @@
                 <ResourceDictionary x:Key="Default">
                     <SolidColorBrush x:Key="ShellBackgroundBrush" Color="#F5F6F8" />
                     <SolidColorBrush x:Key="ShellSurfaceBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="ShellChromeBrush" Color="#F7F8FA" />
                     <SolidColorBrush x:Key="ShellSidebarBrush" Color="#F7F8FA" />
                     <SolidColorBrush x:Key="ShellInputBackgroundBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="ShellButtonBrush" Color="#F1F3F6" />
@@ -21,6 +22,7 @@
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="ShellBackgroundBrush" Color="#F5F6F8" />
                     <SolidColorBrush x:Key="ShellSurfaceBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="ShellChromeBrush" Color="#F7F8FA" />
                     <SolidColorBrush x:Key="ShellSidebarBrush" Color="#F7F8FA" />
                     <SolidColorBrush x:Key="ShellInputBackgroundBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="ShellButtonBrush" Color="#F1F3F6" />
@@ -34,6 +36,7 @@
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="ShellBackgroundBrush" Color="#171A1F" />
                     <SolidColorBrush x:Key="ShellSurfaceBrush" Color="#21252B" />
+                    <SolidColorBrush x:Key="ShellChromeBrush" Color="#1B1F25" />
                     <SolidColorBrush x:Key="ShellSidebarBrush" Color="#1B1F25" />
                     <SolidColorBrush x:Key="ShellInputBackgroundBrush" Color="#15181D" />
                     <SolidColorBrush x:Key="ShellButtonBrush" Color="#2A3038" />
