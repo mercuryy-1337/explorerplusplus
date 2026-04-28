@@ -64,7 +64,10 @@ Current output:
 
 - `RevampWindow.h`
 - `RevampWindow.cpp`
-- first visible revamp chrome pass is live through `ThemeManager.cpp` and `StatusBarView.cpp`
+- `RevampShellHost.h`
+- `RevampShellHost.cpp`
+- the native shell now has a revamp-owned top-band seam that lays out and paints a custom title row above the legacy rebar and tab strip
+- revamp token styling now drives the tab painter, toolbar hover and checked states, address-row theming, and footer sizing
 
 Exit criteria:
 

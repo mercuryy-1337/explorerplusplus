@@ -50,20 +50,50 @@ HBRUSH GetRevampTopBarBrush(bool darkMode)
 	return darkMode ? darkBrush.get() : lightBrush.get();
 }
 
+HBRUSH GetRevampInputBackgroundBrush(bool darkMode)
+{
+	static const wil::unique_hbrush lightBrush(
+		CreateSolidBrush(Revamp::ResolveShellInputBackgroundColor(false)));
+	static const wil::unique_hbrush darkBrush(
+		CreateSolidBrush(Revamp::ResolveShellInputBackgroundColor(true)));
+
+	return darkMode ? darkBrush.get() : lightBrush.get();
+}
+
 HBRUSH GetRevampBorderBrush(bool darkMode)
 {
 	static const wil::unique_hbrush lightBrush(
-		CreateSolidBrush(Revamp::ThemeColorTokens::ShellBorderLight));
+		CreateSolidBrush(Revamp::ResolveShellBorderColor(false)));
 	static const wil::unique_hbrush darkBrush(
-		CreateSolidBrush(Revamp::ThemeColorTokens::ShellBorderDark));
+		CreateSolidBrush(Revamp::ResolveShellBorderColor(true)));
 
 	return darkMode ? darkBrush.get() : lightBrush.get();
 }
 
 COLORREF GetRevampChromeColor(bool darkMode)
 {
-	return darkMode ? Revamp::ThemeColorTokens::ShellChromeDark
-						: Revamp::ThemeColorTokens::ShellChromeLight;
+	return Revamp::ResolveShellChromeColor(darkMode);
+}
+
+COLORREF GetRevampTextColor(bool darkMode)
+{
+	return Revamp::ResolveShellTextColor(darkMode);
+}
+
+COLORREF GetRevampSecondaryTextColor(bool darkMode)
+{
+	return Revamp::ResolveShellSecondaryTextColor(darkMode);
+}
+
+COLORREF GetRevampToolbarHotColor(bool darkMode)
+{
+	return Revamp::ResolveShellButtonHoverColor(darkMode);
+}
+
+COLORREF GetRevampToolbarCheckedColor(bool darkMode)
+{
+	return Revamp::BlendColor(Revamp::ResolveShellAccentColor(darkMode),
+		Revamp::ResolveShellButtonColor(darkMode), darkMode ? 0x55 : 0x33);
 }
 
 void TryApplyRevampBackdrop(HWND hwnd)
@@ -337,11 +367,10 @@ void ThemeManager::ApplyThemeToDialog(HWND hwnd, bool enableDarkMode)
 
 void ThemeManager::ApplyThemeToTabControl(HWND hwnd, bool enableDarkMode)
 {
-	if (enableDarkMode)
-	{
-		m_windowSubclasses.push_back(std::make_unique<WindowSubclass>(hwnd,
-			std::bind_front(&ThemeManager::TabControlSubclass, this)));
-	}
+	UNREFERENCED_PARAMETER(enableDarkMode);
+
+	m_windowSubclasses.push_back(std::make_unique<WindowSubclass>(hwnd,
+		std::bind_front(&ThemeManager::TabControlSubclass, this)));
 }
 
 void ThemeManager::ApplyThemeToListView(HWND hwnd, bool enableDarkMode)
@@ -495,26 +524,22 @@ void ThemeManager::ApplyThemeToToolbar(HWND hwnd, bool enableDarkMode)
 	HWND parent = GetParent(hwnd);
 	CHECK(parent);
 
-	if (enableDarkMode)
-	{
-		// Note that the parent window may end up being subclassed multiple times. That shouldn't
-		// have any correctness issues, since when receiving the relevant drawing messages, one of
-		// the subclasses (it's not specified which) will perform the appropriate handling. It is
-		// inefficient generally, since each subclass will be invoked for other messages as well.
-		// That shouldn't be too much of an issue, since there's only a limited number of toolbars,
-		// so the number of extraneous subclasses won't be very high.
-		m_windowSubclasses.push_back(std::make_unique<WindowSubclass>(parent,
-			std::bind_front(&ThemeManager::ToolbarParentSubclass, this)));
-	}
+	// Note that the parent window may end up being subclassed multiple times. That shouldn't
+	// have any correctness issues, since when receiving the relevant drawing messages, one of
+	// the subclasses (it's not specified which) will perform the appropriate handling. It is
+	// inefficient generally, since each subclass will be invoked for other messages as well.
+	// That shouldn't be too much of an issue, since there's only a limited number of toolbars,
+	// so the number of extraneous subclasses won't be very high.
+	m_windowSubclasses.push_back(std::make_unique<WindowSubclass>(parent,
+		std::bind_front(&ThemeManager::ToolbarParentSubclass, this)));
 }
 
 void ThemeManager::ApplyThemeToComboBoxEx(HWND hwnd, bool enableDarkMode)
 {
-	if (enableDarkMode)
-	{
-		m_windowSubclasses.push_back(std::make_unique<WindowSubclass>(hwnd,
-			std::bind_front(&ThemeManager::ComboBoxExSubclass, this)));
-	}
+	UNREFERENCED_PARAMETER(enableDarkMode);
+
+	m_windowSubclasses.push_back(std::make_unique<WindowSubclass>(hwnd,
+		std::bind_front(&ThemeManager::ComboBoxExSubclass, this)));
 }
 
 void ThemeManager::ApplyThemeToComboBox(HWND hwnd)
@@ -1059,25 +1084,23 @@ LRESULT ThemeManager::OnToolbarCustomDraw(NMTBCUSTOMDRAW *customDraw)
 		return CDRF_NOTIFYITEMDRAW;
 
 	case CDDS_ITEMPREPAINT:
+	{
+		bool darkModeEnabled = m_darkModeManager->IsDarkModeEnabled();
+
 		if (WI_IsFlagSet(customDraw->nmcd.uItemState, CDIS_CHECKED))
 		{
-			// The color used to draw checked items doesn't work very well in dark mode (the color
-			// is too bright and somewhat hard to distinguish from the text). Therefore, checked
-			// items will be drawn as if they're hot.
-			//
-			// Additionally, if the button actually is hot, it will still be drawn in the same
-			// color. That matches the behavior of the control in the default theme.
 			WI_SetFlag(customDraw->nmcd.uItemState, CDIS_HOT);
-			customDraw->clrHighlightHotTrack =
-				m_darkModeColorProvider->GetToolbarCheckedBackgroundColor();
+			customDraw->clrHighlightHotTrack = GetRevampToolbarCheckedColor(darkModeEnabled);
 		}
 		else
 		{
-			customDraw->clrHighlightHotTrack = m_darkModeColorProvider->GetHotItemBackgroundColor();
+			customDraw->clrHighlightHotTrack = GetRevampToolbarHotColor(darkModeEnabled);
 		}
 
-		customDraw->clrText = m_darkModeColorProvider->GetTextColor();
+		customDraw->clrText = GetRevampTextColor(darkModeEnabled);
+		customDraw->clrTextHighlight = GetRevampTextColor(darkModeEnabled);
 		return TBCDRF_USECDCOLORS | TBCDRF_HILITEHOTTRACK;
+	}
 	}
 
 	return CDRF_DODEFAULT;
@@ -1088,11 +1111,14 @@ LRESULT ThemeManager::ComboBoxExSubclass(HWND hwnd, UINT msg, WPARAM wParam, LPA
 	switch (msg)
 	{
 	case WM_CTLCOLOREDIT:
+	case WM_CTLCOLORSTATIC:
 	{
+		bool darkModeEnabled = m_darkModeManager->IsDarkModeEnabled();
 		auto hdc = reinterpret_cast<HDC>(wParam);
 		SetBkMode(hdc, TRANSPARENT);
-		SetTextColor(hdc, m_darkModeColorProvider->GetTextColor());
-		return reinterpret_cast<LRESULT>(m_darkModeColorProvider->GetComboBoxExBackgroundBrush());
+		SetTextColor(hdc, GetRevampTextColor(darkModeEnabled));
+		SetBkColor(hdc, Revamp::ResolveShellInputBackgroundColor(darkModeEnabled));
+		return reinterpret_cast<LRESULT>(GetRevampInputBackgroundBrush(darkModeEnabled));
 	}
 	break;
 	}
@@ -1113,7 +1139,7 @@ LRESULT ThemeManager::TabControlSubclass(HWND hwnd, UINT msg, WPARAM wParam, LPA
 		HDC memDC = doubleBufferedPaint.GetMemoryDC();
 		RECT paintRect = doubleBufferedPaint.GetPaintRect();
 
-		ThemedTabControlPainter painter(hwnd, m_darkModeColorProvider);
+		ThemedTabControlPainter painter(hwnd, m_darkModeManager->IsDarkModeEnabled());
 
 		if (auto itr = m_hotTabMap.find(hwnd); itr != m_hotTabMap.end())
 		{
@@ -1126,6 +1152,12 @@ LRESULT ThemeManager::TabControlSubclass(HWND hwnd, UINT msg, WPARAM wParam, LPA
 
 	case WM_MOUSEMOVE:
 	{
+		TRACKMOUSEEVENT trackMouseEvent = {};
+		trackMouseEvent.cbSize = sizeof(trackMouseEvent);
+		trackMouseEvent.dwFlags = TME_LEAVE;
+		trackMouseEvent.hwndTrack = hwnd;
+		TrackMouseEvent(&trackMouseEvent);
+
 		POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 
 		TCHITTESTINFO hitTestInfo = {};

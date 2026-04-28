@@ -1523,6 +1523,7 @@
     <ClCompile Include="WindowStorage.cpp" />
     <ClCompile Include="WindowXmlStorage.cpp" />
     <ClCompile Include="WinMain.cpp" />
+    <ClCompile Include="Revamp\RevampShellHost.cpp" />
     <ClCompile Include="Revamp\RevampWindow.cpp" />
     <ClCompile Include="XmlAppStorage.cpp" />
     <ClCompile Include="XmlAppStorageFactory.cpp" />
@@ -1882,6 +1883,7 @@
     <ClInclude Include="WindowXmlStorage.h" />
     <ClInclude Include="XmlAppStorage.h" />
     <ClInclude Include="XmlAppStorageFactory.h" />
+    <ClInclude Include="Revamp\RevampShellHost.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Revamp\milestone.md" />

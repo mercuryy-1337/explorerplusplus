@@ -325,6 +325,9 @@
     <ClCompile Include="Revamp\RevampThemeTokens.cpp">
       <Filter>Revamp</Filter>
     </ClCompile>
+    <ClCompile Include="Revamp\RevampShellHost.cpp">
+      <Filter>Revamp</Filter>
+    </ClCompile>
     <ClCompile Include="Revamp\RevampWindow.cpp">
       <Filter>Revamp</Filter>
     </ClCompile>
@@ -1969,6 +1972,9 @@
       <Filter>Shell</Filter>
     </ClInclude>
     <ClInclude Include="Revamp\RevampThemeTokens.h">
+      <Filter>Revamp</Filter>
+    </ClInclude>
+    <ClInclude Include="Revamp\RevampShellHost.h">
       <Filter>Revamp</Filter>
     </ClInclude>
     <ClInclude Include="Revamp\RevampWindow.h">

@@ -12,7 +12,7 @@ class ColorProvider;
 class ThemedTabControlPainter
 {
 public:
-	ThemedTabControlPainter(HWND hwnd, const ColorProvider *colorProvider);
+	ThemedTabControlPainter(HWND hwnd, bool darkMode);
 
 	void SetHotItem(int hotItem);
 	void ClearHotItem();
@@ -23,6 +23,6 @@ private:
 	RECT GetTabRect(int index);
 
 	const HWND m_hwnd;
-	const ColorProvider *const m_colorProvider;
+	const bool m_darkMode;
 	std::optional<int> m_hotItem;
 };

@@ -87,6 +87,18 @@ struct ThemeOpacityTokens
 };
 
 [[nodiscard]] COLORREF BlendColor(COLORREF foreground, COLORREF background, BYTE alpha);
+[[nodiscard]] COLORREF ResolveShellBackgroundColor(bool darkMode);
+[[nodiscard]] COLORREF ResolveShellSurfaceColor(bool darkMode);
+[[nodiscard]] COLORREF ResolveShellChromeColor(bool darkMode);
 [[nodiscard]] COLORREF ResolveShellTopBarColor(bool darkMode);
+[[nodiscard]] COLORREF ResolveShellInputBackgroundColor(bool darkMode);
+[[nodiscard]] COLORREF ResolveShellButtonColor(bool darkMode);
+[[nodiscard]] COLORREF ResolveShellButtonHoverColor(bool darkMode);
+[[nodiscard]] COLORREF ResolveShellButtonPressedColor(bool darkMode);
+[[nodiscard]] COLORREF ResolveShellBorderColor(bool darkMode);
+[[nodiscard]] COLORREF ResolveShellTextColor(bool darkMode);
+[[nodiscard]] COLORREF ResolveShellSecondaryTextColor(bool darkMode);
+[[nodiscard]] COLORREF ResolveShellSelectionColor(bool darkMode);
+[[nodiscard]] COLORREF ResolveShellAccentColor(bool darkMode);
 
 } // namespace Revamp
