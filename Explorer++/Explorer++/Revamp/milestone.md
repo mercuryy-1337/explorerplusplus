@@ -13,7 +13,7 @@ This folder tracks the native Explorer++ visual revamp that will replace the leg
 
 ### Phase 1 - Visual And Behavior Spec
 
-Status: In progress
+Status: Completed
 
 Deliverables:
 
@@ -26,6 +26,7 @@ Current output:
 - `phase-01-visual-spec.md`
 - `RevampThemeTokens.h`
 - `RevampThemeTokens.cpp`
+- phase-1 token scaffolding is compiled into the native project
 
 Exit criteria:
 
@@ -34,7 +35,7 @@ Exit criteria:
 
 ### Phase 2 - Native Revamp Subtree And Theme Scaffolding
 
-Status: In progress
+Status: Completed
 
 Deliverables:
 
@@ -46,16 +47,24 @@ Exit criteria:
 
 - The revamp subtree is present in the project.
 - Native token helpers are available for later surfaces.
+- The revamp subtree is wired into the Explorer++ native build.
 
 ### Phase 3 - Revamp Window Host
 
-Status: Not started
+Status: In progress
 
 Deliverables:
 
 - Add a top-level revamp host that can eventually replace the legacy shell window.
 - Keep the host behind a controlled seam so the old shell can coexist during migration.
 - Mirror the current WinUIHost title bar and top-level layout regions.
+- Make the revamp visually obvious in the shipping native shell before full cutover.
+
+Current output:
+
+- `RevampWindow.h`
+- `RevampWindow.cpp`
+- first visible revamp chrome pass is live through `ThemeManager.cpp` and `StatusBarView.cpp`
 
 Exit criteria:
 

@@ -3,6 +3,7 @@
 // See LICENSE in the top level directory
 
 #include "stdafx.h"
+#include "Revamp/RevampThemeTokens.h"
 #include "StatusBarView.h"
 #include "../Helper/Controls.h"
 #include "../Helper/WindowHelper.h"
@@ -73,7 +74,8 @@ void StatusBarView::UpdateMinHeight()
 	//
 	// That shouldn't really be a problem, though, since the control will simply be a bit larger
 	// than necessary.
-	SendMessage(m_hwnd, SB_SETMINHEIGHT, textMetrics.tmHeight, 0);
+	SendMessage(m_hwnd, SB_SETMINHEIGHT,
+		textMetrics.tmHeight + Revamp::ThemeMetricTokens::StandardSpacing, 0);
 
 	// As per the documentation for SB_SETMINHEIGHT, this will redraw the window.
 	SendMessage(m_hwnd, WM_SIZE, 0, 0);

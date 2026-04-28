@@ -9,6 +9,7 @@
 #include "Explorer++.h"
 #include "DarkModeColorProvider.h"
 #include "DarkModeManager.h"
+#include "Revamp/RevampThemeTokens.h"
 #include "SystemFontHelper.h"
 #include "ThemedTabControlPainter.h"
 #include "../Helper/Controls.h"
@@ -20,6 +21,66 @@
 #include <glog/logging.h>
 #include <wil/resource.h>
 #include <vssym32.h>
+
+namespace
+{
+
+#ifndef DWMWA_SYSTEMBACKDROP_TYPE
+#define DWMWA_SYSTEMBACKDROP_TYPE 38
+#endif
+
+#ifndef DWMSBT_AUTO
+enum DWM_SYSTEMBACKDROP_TYPE
+{
+	DWMSBT_AUTO = 0,
+	DWMSBT_NONE = 1,
+	DWMSBT_MAINWINDOW = 2,
+	DWMSBT_TRANSIENTWINDOW = 3,
+	DWMSBT_TABBEDWINDOW = 4
+};
+#endif
+
+HBRUSH GetRevampTopBarBrush(bool darkMode)
+{
+	static const wil::unique_hbrush lightBrush(
+		CreateSolidBrush(Revamp::ResolveShellTopBarColor(false)));
+	static const wil::unique_hbrush darkBrush(
+		CreateSolidBrush(Revamp::ResolveShellTopBarColor(true)));
+
+	return darkMode ? darkBrush.get() : lightBrush.get();
+}
+
+HBRUSH GetRevampBorderBrush(bool darkMode)
+{
+	static const wil::unique_hbrush lightBrush(
+		CreateSolidBrush(Revamp::ThemeColorTokens::ShellBorderLight));
+	static const wil::unique_hbrush darkBrush(
+		CreateSolidBrush(Revamp::ThemeColorTokens::ShellBorderDark));
+
+	return darkMode ? darkBrush.get() : lightBrush.get();
+}
+
+COLORREF GetRevampChromeColor(bool darkMode)
+{
+	return darkMode ? Revamp::ThemeColorTokens::ShellChromeDark
+						: Revamp::ThemeColorTokens::ShellChromeLight;
+}
+
+void TryApplyRevampBackdrop(HWND hwnd)
+{
+	DWM_SYSTEMBACKDROP_TYPE backdropType = DWMSBT_TRANSIENTWINDOW;
+	auto hr = DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType,
+		sizeof(backdropType));
+
+	if (FAILED(hr))
+	{
+		backdropType = DWMSBT_MAINWINDOW;
+		DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType,
+			sizeof(backdropType));
+	}
+}
+
+} // namespace
 
 ThemeManager::ThemeManager(DarkModeManager *darkModeManager,
 	const DarkModeColorProvider *darkModeColorProvider) :
@@ -218,6 +279,7 @@ void ThemeManager::ApplyThemeToMainWindow(HWND hwnd, bool enableDarkMode)
 
 	BOOL dark = enableDarkMode;
 	DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
+	TryApplyRevampBackdrop(hwnd);
 
 	m_windowSubclasses.push_back(std::make_unique<WindowSubclass>(hwnd,
 		std::bind_front(&ThemeManager::MainWindowSubclass, this)));
@@ -393,11 +455,10 @@ void ThemeManager::ApplyThemeToRichEdit(HWND hwnd, bool enableDarkMode)
 
 void ThemeManager::ApplyThemeToRebar(HWND hwnd, bool enableDarkMode)
 {
-	if (enableDarkMode)
-	{
-		m_windowSubclasses.push_back(std::make_unique<WindowSubclass>(hwnd,
-			std::bind_front(&ThemeManager::RebarSubclass, this)));
-	}
+	UNREFERENCED_PARAMETER(enableDarkMode);
+
+	m_windowSubclasses.push_back(std::make_unique<WindowSubclass>(hwnd,
+		std::bind_front(&ThemeManager::RebarSubclass, this)));
 }
 
 void ThemeManager::ApplyThemeToToolbar(HWND hwnd, bool enableDarkMode)
@@ -531,6 +592,9 @@ void ThemeManager::ApplyThemeToStatusBar(HWND hwnd, bool enableDarkMode)
 		// https://devblogs.microsoft.com/oldnewthing/20181115-00/?p=100225).
 		SetWindowTheme(hwnd, nullptr, nullptr);
 	}
+
+	SendMessage(hwnd, SB_SETBKCOLOR, 0, GetRevampChromeColor(enableDarkMode));
+	InvalidateRect(hwnd, nullptr, TRUE);
 }
 
 void ThemeManager::ApplyThemeToScrollBar(HWND hwnd, bool enableDarkMode)
@@ -771,12 +835,8 @@ LRESULT ThemeManager::MainWindowSubclass(HWND hwnd, UINT msg, WPARAM wParam, LPA
 	case WM_NCPAINT:
 	case WM_NCACTIVATE:
 	{
-		if (!m_darkModeManager->IsDarkModeEnabled())
-		{
-			break;
-		}
-
 		auto defWindowProcResult = DefWindowProc(hwnd, msg, wParam, lParam);
+		bool darkModeEnabled = m_darkModeManager->IsDarkModeEnabled();
 
 		RECT windowRect;
 		auto res = GetWindowRect(hwnd, &windowRect);
@@ -793,7 +853,7 @@ LRESULT ThemeManager::MainWindowSubclass(HWND hwnd, UINT msg, WPARAM wParam, LPA
 		OffsetRect(&menuBarBorderRect, -windowRect.left, -windowRect.top);
 
 		auto hdc = wil::GetWindowDC(hwnd);
-		FillRect(hdc.get(), &menuBarBorderRect, m_darkModeColorProvider->GetBackgroundBrush());
+		FillRect(hdc.get(), &menuBarBorderRect, GetRevampBorderBrush(darkModeEnabled));
 
 		return defWindowProcResult;
 	}
@@ -805,25 +865,12 @@ LRESULT ThemeManager::MainWindowSubclass(HWND hwnd, UINT msg, WPARAM wParam, LPA
 
 HBRUSH ThemeManager::GetMenuBarBackgroundBrush(bool enableDarkMode)
 {
-	if (enableDarkMode)
+	if (DarkModeManager::IsHighContrast())
 	{
-		return m_darkModeColorProvider->GetBackgroundBrush();
+		return GetSysColorBrush(COLOR_BTNFACE);
 	}
-	else
-	{
-		int systemColorIndex;
 
-		if (DarkModeManager::IsHighContrast())
-		{
-			systemColorIndex = COLOR_BTNFACE;
-		}
-		else
-		{
-			systemColorIndex = COLOR_WINDOW;
-		}
-
-		return GetSysColorBrush(systemColorIndex);
-	}
+	return GetRevampTopBarBrush(enableDarkMode);
 }
 
 bool ThemeManager::ShouldAlwaysShowAccessKeys()
@@ -1157,10 +1204,11 @@ LRESULT ThemeManager::RebarSubclass(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 	case WM_ERASEBKGND:
 	{
 		auto hdc = reinterpret_cast<HDC>(wParam);
+		bool darkModeEnabled = m_darkModeManager->IsDarkModeEnabled();
 
 		RECT rc;
 		GetClientRect(hwnd, &rc);
-		FillRect(hdc, &rc, m_darkModeColorProvider->GetBackgroundBrush());
+		FillRect(hdc, &rc, GetRevampTopBarBrush(darkModeEnabled));
 
 		return 1;
 	}
