@@ -257,8 +257,10 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 
 		/// <summary>
 		/// Builds a native shell context menu for the given path.
+		/// When onNavigate is provided, the shell "open" verb navigates
+		/// in-app instead of launching Explorer.
 		/// </summary>
-		public static MenuFlyout? BuildFlyout(string path, IntPtr hwndOwner)
+		public static MenuFlyout? BuildFlyout(string path, IntPtr hwndOwner, Action<string>? onNavigate = null)
 		{
 			var contextMenu = GetContextMenuForPath(path, hwndOwner);
 			if (contextMenu == null)
@@ -284,9 +286,13 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 					MenuFlyoutPresenterStyle = CreatePresenterStyle()
 				};
 
-				flyout.SystemBackdrop = new DesktopAcrylicBackdrop();
+				try
+				{
+					flyout.SystemBackdrop = new DesktopAcrylicBackdrop();
+				}
+				catch { }
 
-				PopulateFlyoutItems(flyout.Items, hMenu, contextMenu, idCmdFirst, hwndOwner, path, itemStyle, subItemStyle);
+				PopulateFlyoutItems(flyout.Items, hMenu, contextMenu, idCmdFirst, hwndOwner, path, itemStyle, subItemStyle, onNavigate);
 
 				RemoveTrailingSeparators(flyout.Items);
 				RemoveDuplicateSeparators(flyout.Items);
@@ -303,7 +309,8 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 		}
 
 		private static void PopulateFlyoutItems(IList<MenuFlyoutItemBase> items, IntPtr hMenu, IContextMenu contextMenu,
-			uint idCmdFirst, IntPtr hwndOwner, string? directory, Style itemStyle, Style subItemStyle, int depth = 0)
+			uint idCmdFirst, IntPtr hwndOwner, string? directory, Style itemStyle, Style subItemStyle,
+			Action<string>? onNavigate = null, int depth = 0)
 		{
 			int count = GetMenuItemCount(hMenu);
 			for (int i = 0; i < count; i++)
@@ -330,7 +337,7 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 				{
 					if (depth >= 2)
 					{
-						PopulateFlyoutItems(items, mii.hSubMenu, contextMenu, idCmdFirst, hwndOwner, directory, itemStyle, subItemStyle, depth + 1);
+						PopulateFlyoutItems(items, mii.hSubMenu, contextMenu, idCmdFirst, hwndOwner, directory, itemStyle, subItemStyle, onNavigate, depth + 1);
 						continue;
 					}
 
@@ -343,7 +350,7 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 					subItem.IsTapEnabled = false;
 					ApplyItemResources(subItem, includeSubMenuStateResources: true);
 
-					PopulateFlyoutItems(subItem.Items, mii.hSubMenu, contextMenu, idCmdFirst, hwndOwner, directory, itemStyle, subItemStyle, depth + 1);
+					PopulateFlyoutItems(subItem.Items, mii.hSubMenu, contextMenu, idCmdFirst, hwndOwner, directory, itemStyle, subItemStyle, onNavigate, depth + 1);
 					RemoveTrailingSeparators(subItem.Items);
 					RemoveDuplicateSeparators(subItem.Items);
 
@@ -378,8 +385,20 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 
 				if (!isDisabled)
 				{
+					var capturedOnNavigate = onNavigate;
 					item.Click += (_, _) =>
 					{
+						if (capturedOnNavigate != null)
+						{
+							var verb = GetCommandString(contextMenu, commandOffset, GCS_VERBW);
+							if (!string.IsNullOrEmpty(verb) && string.Equals(verb, "open", StringComparison.OrdinalIgnoreCase)
+								&& !string.IsNullOrWhiteSpace(directory))
+							{
+								capturedOnNavigate(directory);
+								return;
+							}
+						}
+
 						InvokeCommand(contextMenu, commandOffset, hwndOwner, directory);
 					};
 				}
@@ -600,7 +619,7 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 		private static Style CreatePresenterStyle()
 		{
 			var style = new Style(typeof(MenuFlyoutPresenter));
-			style.Setters.Add(new Setter(Control.BackgroundProperty, CreateContextMenuBackgroundBrush()));
+			style.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0))));
 			style.Setters.Add(new Setter(Control.BorderBrushProperty, CreateContextMenuBorderBrush()));
 			style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
 			style.Setters.Add(new Setter(Control.CornerRadiusProperty, new CornerRadius(12)));
@@ -700,11 +719,13 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 		/// <summary>
 		/// Convenience helper that builds a native context-menu flyout and shows it.
 		/// Returns the flyout so callers can attach cleanup handlers (e.g. Closed).
+		/// When onNavigate is provided, the shell "open" verb navigates in-app.
 		/// </summary>
-		public static MenuFlyout? ShowContextMenuAt(string path, FrameworkElement anchor, Point position)
+		public static MenuFlyout? ShowContextMenuAt(string path, FrameworkElement anchor, Point position,
+			Action<string>? onNavigate = null)
 		{
 			var hwnd = WindowNative.GetWindowHandle(App.ShellWindow!);
-			var flyout = BuildFlyout(path, hwnd);
+			var flyout = BuildFlyout(path, hwnd, onNavigate);
 			if (flyout != null)
 			{
 				flyout.ShowAt(anchor, new FlyoutShowOptions { Position = position });

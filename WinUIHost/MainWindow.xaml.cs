@@ -123,7 +123,8 @@ namespace ExplorerPlusPlus.WinUIHost
 			if (sender is FrameworkElement element && element.DataContext is FileItemState item
 				&& !string.IsNullOrWhiteSpace(item.ActivationPath))
 			{
-				NativeShellContextMenu.ShowContextMenuAt(item.ActivationPath, element, e.GetPosition(element));
+				NativeShellContextMenu.ShowContextMenuAt(item.ActivationPath, element, e.GetPosition(element),
+					onNavigate: path => ViewModel.TryNavigateToPath(path));
 				e.Handled = true;
 			}
 		}
@@ -943,7 +944,8 @@ namespace ExplorerPlusPlus.WinUIHost
 
 			folder.IsRightClicked = true;
 
-			var flyout = NativeShellContextMenu.ShowContextMenuAt(folder.ActivationPath, element, e.GetPosition(element));
+			var flyout = NativeShellContextMenu.ShowContextMenuAt(folder.ActivationPath, element, e.GetPosition(element),
+				onNavigate: path => ViewModel.TryNavigateToPath(path));
 			if (flyout != null)
 			{
 				flyout.Closed += (_, _) =>
