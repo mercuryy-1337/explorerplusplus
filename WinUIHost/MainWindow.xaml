@@ -486,7 +486,7 @@
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Margin="16,2,16,2" Padding="0,8" DoubleTapped="FilesViewItem_DoubleTapped">
+                                    <Grid Margin="0,2,0,2" Padding="16,8,16,8" Background="Transparent" DoubleTapped="FilesViewItem_DoubleTapped">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="180" />

@@ -5,6 +5,8 @@
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
@@ -13,6 +15,8 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
+using Windows.Foundation;
+using WinRT.Interop;
 
 namespace ExplorerPlusPlus.WinUIHost.Controls
 {
@@ -251,6 +255,9 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 		private static IContextMenu3? s_contextMenu3;
 		private static readonly SubclassProc s_subclassProc = MenuSubclassProc;
 
+		/// <summary>
+		/// Builds a native shell context menu for the given path.
+		/// </summary>
 		public static MenuFlyout? BuildFlyout(string path, IntPtr hwndOwner)
 		{
 			var contextMenu = GetContextMenuForPath(path, hwndOwner);
@@ -688,6 +695,21 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 			}
 
 			return Application.Current.RequestedTheme == ApplicationTheme.Dark;
+		}
+
+		/// <summary>
+		/// Convenience helper that builds a native context-menu flyout and shows it.
+		/// Returns the flyout so callers can attach cleanup handlers (e.g. Closed).
+		/// </summary>
+		public static MenuFlyout? ShowContextMenuAt(string path, FrameworkElement anchor, Point position)
+		{
+			var hwnd = WindowNative.GetWindowHandle(App.ShellWindow!);
+			var flyout = BuildFlyout(path, hwnd);
+			if (flyout != null)
+			{
+				flyout.ShowAt(anchor, new FlyoutShowOptions { Position = position });
+			}
+			return flyout;
 		}
 
 		private static void RemoveTrailingSeparators(IList<MenuFlyoutItemBase> items)

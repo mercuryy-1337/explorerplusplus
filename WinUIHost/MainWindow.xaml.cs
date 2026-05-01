@@ -91,6 +91,40 @@ namespace ExplorerPlusPlus.WinUIHost
 				view.AddHandler(UIElement.PointerCanceledEvent, new PointerEventHandler(FilesView_PointerCanceled), true);
 				view.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(FilesView_PointerCaptureLost), true);
 				view.Tapped += FilesView_Tapped;
+				view.ContainerContentChanging += OnFilesViewContainerContentChanging;
+			}
+		}
+
+		private void OnFilesViewContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+		{
+			if (args.InRecycleQueue)
+			{
+				args.ItemContainer.DoubleTapped -= FilesContainer_DoubleTapped;
+				args.ItemContainer.RightTapped -= FilesContainer_RightTapped;
+			}
+			else
+			{
+				args.ItemContainer.DoubleTapped += FilesContainer_DoubleTapped;
+				args.ItemContainer.RightTapped += FilesContainer_RightTapped;
+			}
+		}
+
+		private void FilesContainer_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+		{
+			if (sender is FrameworkElement element && element.DataContext is FileItemState item)
+			{
+				ViewModel.ActivateFileItemCommand.Execute(item);
+				e.Handled = true;
+			}
+		}
+
+		private void FilesContainer_RightTapped(object sender, RightTappedRoutedEventArgs e)
+		{
+			if (sender is FrameworkElement element && element.DataContext is FileItemState item
+				&& !string.IsNullOrWhiteSpace(item.ActivationPath))
+			{
+				NativeShellContextMenu.ShowContextMenuAt(item.ActivationPath, element, e.GetPosition(element));
+				e.Handled = true;
 			}
 		}
 
@@ -909,18 +943,13 @@ namespace ExplorerPlusPlus.WinUIHost
 
 			folder.IsRightClicked = true;
 
-			var hwnd = WindowNative.GetWindowHandle(this);
-			var flyout = NativeShellContextMenu.BuildFlyout(folder.ActivationPath, hwnd);
+			var flyout = NativeShellContextMenu.ShowContextMenuAt(folder.ActivationPath, element, e.GetPosition(element));
 			if (flyout != null)
 			{
 				flyout.Closed += (_, _) =>
 				{
 					folder.IsRightClicked = false;
 				};
-				flyout.ShowAt(element, new FlyoutShowOptions
-				{
-					Position = e.GetPosition(element)
-				});
 			}
 			else
 			{
