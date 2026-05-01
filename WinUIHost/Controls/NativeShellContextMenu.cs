@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using Windows.Foundation;
@@ -48,6 +49,44 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 		private const uint WM_MENUCHAR = 0x0120;
 
 		private const int HBMMENU_CALLBACK = -1;
+		private const uint SEE_MASK_INVOKEIDLIST = 0x0000000C;
+		private const uint SEE_MASK_FLAG_NO_UI = 0x00000400;
+
+		private const uint SHOP_FILEPATH = 0x00000002;
+
+		[DllImport("shell32.dll")]
+		private static extern int SHGetDesktopFolder([MarshalAs(UnmanagedType.Interface)] out IShellFolder shellFolder);
+
+		[DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+		private static extern int SHMultiFileProperties(
+			[MarshalAs(UnmanagedType.Interface)] IDataObject dataObject, uint flags);
+
+		[DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		private static extern bool SHObjectProperties(IntPtr hwnd, uint shopObjectType, string objectName, string? propertyPage);
+
+		[DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+		private static extern bool ShellExecuteEx(ref SHELLEXECUTEINFOW_LEGACY executeInfo);
+
+		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+		private struct SHELLEXECUTEINFOW_LEGACY
+		{
+			public int cbSize;
+			public uint fMask;
+			public IntPtr hwnd;
+			public string? lpVerb;
+			public string? lpFile;
+			public string? lpParameters;
+			public string? lpDirectory;
+			public int nShow;
+			public IntPtr hInstApp;
+			public IntPtr lpIDList;
+			public string? lpClass;
+			public IntPtr hkeyClass;
+			public uint dwHotKey;
+			public IntPtr hIconOrMonitor;
+			public IntPtr hProcess;
+		}
 
 		private const double ContextMenuFontSize = 13;
 		private const double ContextMenuMinWidth = 226;
@@ -386,17 +425,25 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 				if (!isDisabled)
 				{
 					var capturedOnNavigate = onNavigate;
+					var capturedHwnd = hwndOwner;
+					var capturedDirectory = directory;
 					item.Click += (_, _) =>
 					{
-						if (capturedOnNavigate != null)
+						var verb = GetCommandString(contextMenu, commandOffset, GCS_VERBW);
+
+						if (capturedOnNavigate != null
+							&& !string.IsNullOrEmpty(verb) && string.Equals(verb, "open", StringComparison.OrdinalIgnoreCase)
+							&& !string.IsNullOrWhiteSpace(capturedDirectory))
 						{
-							var verb = GetCommandString(contextMenu, commandOffset, GCS_VERBW);
-							if (!string.IsNullOrEmpty(verb) && string.Equals(verb, "open", StringComparison.OrdinalIgnoreCase)
-								&& !string.IsNullOrWhiteSpace(directory))
-							{
-								capturedOnNavigate(directory);
-								return;
-							}
+							capturedOnNavigate(capturedDirectory);
+							return;
+						}
+
+						if (!string.IsNullOrEmpty(verb) && string.Equals(verb, "properties", StringComparison.OrdinalIgnoreCase)
+							&& !string.IsNullOrWhiteSpace(capturedDirectory))
+						{
+							ShowPropertiesDialog(capturedDirectory, capturedHwnd);
+							return;
 						}
 
 						InvokeCommand(contextMenu, commandOffset, hwndOwner, directory);
@@ -731,6 +778,89 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 				flyout.ShowAt(anchor, new FlyoutShowOptions { Position = position });
 			}
 			return flyout;
+		}
+
+		private static void ShowPropertiesDialog(string path, IntPtr hwndOwner)
+		{
+			if (TryShowPropertiesWithDataObject(path, hwndOwner))
+				return;
+
+			if (TryShowPropertiesWithPath(path, hwndOwner))
+				return;
+
+			TryShowPropertiesWithShellVerb(path, hwndOwner);
+		}
+
+		private static bool TryShowPropertiesWithDataObject(string path, IntPtr hwndOwner)
+		{
+			IShellFolder? desktopFolder = null;
+			object? dataObject = null;
+			IntPtr itemIdList = IntPtr.Zero;
+
+			try
+			{
+				int hr = SHGetDesktopFolder(out desktopFolder);
+				if (hr < 0 || desktopFolder == null)
+					return false;
+
+				uint eaten = 0;
+				uint attributes = 0;
+				hr = desktopFolder.ParseDisplayName(hwndOwner, IntPtr.Zero, path, ref eaten, out itemIdList, ref attributes);
+				if (hr < 0 || itemIdList == IntPtr.Zero)
+					return false;
+
+				var itemIdLists = new[] { itemIdList };
+				var dataObjectIid = typeof(IDataObject).GUID;
+				hr = desktopFolder.GetUIObjectOf(hwndOwner, (uint)itemIdLists.Length, itemIdLists, ref dataObjectIid, IntPtr.Zero, out dataObject);
+				if (hr < 0 || dataObject is not IDataObject shellDataObject)
+					return false;
+
+				return SHMultiFileProperties(shellDataObject, 0) >= 0;
+			}
+			catch
+			{
+				return false;
+			}
+			finally
+			{
+				if (dataObject != null && Marshal.IsComObject(dataObject))
+					Marshal.ReleaseComObject(dataObject);
+
+				if (desktopFolder != null && Marshal.IsComObject(desktopFolder))
+					Marshal.ReleaseComObject(desktopFolder);
+
+				if (itemIdList != IntPtr.Zero)
+					Marshal.FreeCoTaskMem(itemIdList);
+			}
+		}
+
+		private static bool TryShowPropertiesWithPath(string path, IntPtr hwndOwner)
+		{
+			try { return SHObjectProperties(hwndOwner, SHOP_FILEPATH, path, null); }
+			catch { return false; }
+		}
+
+		private static bool TryShowPropertiesWithShellVerb(string path, IntPtr hwndOwner)
+		{
+			try
+			{
+				var executeInfo = new SHELLEXECUTEINFOW_LEGACY
+				{
+					cbSize = Marshal.SizeOf<SHELLEXECUTEINFOW_LEGACY>(),
+					fMask = SEE_MASK_INVOKEIDLIST | SEE_MASK_FLAG_NO_UI,
+					hwnd = hwndOwner,
+					lpVerb = "properties",
+					lpFile = path,
+					nShow = 1 // SW_SHOWNORMAL
+				};
+
+				ShellExecuteEx(ref executeInfo);
+				return true;
+			}
+			catch
+			{
+				return false;
+			}
 		}
 
 		private static void RemoveTrailingSeparators(IList<MenuFlyoutItemBase> items)
