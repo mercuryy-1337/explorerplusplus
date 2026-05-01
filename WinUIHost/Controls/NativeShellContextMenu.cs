@@ -642,7 +642,7 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 
 		private static void ApplyItemResources(FrameworkElement item, bool includeSubMenuStateResources)
 		{
-			var hoverBackgroundBrush = ResolveThemeBrush("ShellNavButtonHoverBrush");
+			var hoverBackgroundBrush = ResolveThemeBrush("ShellSelectionBrush");
 			var textBrush = ResolveThemeBrush("ShellTextBrush");
 			var chevronBrush = ResolveThemeBrush("ShellSecondaryTextBrush");
 
