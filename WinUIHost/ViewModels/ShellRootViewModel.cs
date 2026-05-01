@@ -134,6 +134,13 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			ActivateTab(tab, true);
 		}
 
+		public void OpenNewTabAtPath(string activationPath)
+		{
+			var tab = CreateTabState(activationPath);
+			Tabs.Add(tab);
+			ActivateTab(tab, true);
+		}
+
 		public bool CloseTab(TabState? tab)
 		{
 			if (tab == null)

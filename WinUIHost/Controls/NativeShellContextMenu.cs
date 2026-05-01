@@ -299,7 +299,10 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 		/// When onNavigate is provided, the shell "open" verb navigates
 		/// in-app instead of launching Explorer.
 		/// </summary>
-		public static MenuFlyout? BuildFlyout(string path, IntPtr hwndOwner, Action<string>? onNavigate = null)
+		public static MenuFlyout? BuildFlyout(string path, IntPtr hwndOwner,
+			Action<string>? onNavigate = null,
+			Action<string>? onOpenInNewTab = null,
+			Action<string>? onOpenInNewWindow = null)
 		{
 			var contextMenu = GetContextMenuForPath(path, hwndOwner);
 			if (contextMenu == null)
@@ -335,6 +338,8 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 
 				RemoveTrailingSeparators(flyout.Items);
 				RemoveDuplicateSeparators(flyout.Items);
+
+				InsertOpenInOptions(flyout.Items, path, itemStyle, onOpenInNewTab, onOpenInNewWindow);
 
 				if (flyout.Items.Count == 0)
 					return null;
@@ -769,15 +774,63 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 		/// When onNavigate is provided, the shell "open" verb navigates in-app.
 		/// </summary>
 		public static MenuFlyout? ShowContextMenuAt(string path, FrameworkElement anchor, Point position,
-			Action<string>? onNavigate = null)
+			Action<string>? onNavigate = null,
+			Action<string>? onOpenInNewTab = null,
+			Action<string>? onOpenInNewWindow = null)
 		{
 			var hwnd = WindowNative.GetWindowHandle(App.ShellWindow!);
-			var flyout = BuildFlyout(path, hwnd, onNavigate);
+			var flyout = BuildFlyout(path, hwnd, onNavigate, onOpenInNewTab, onOpenInNewWindow);
 			if (flyout != null)
 			{
 				flyout.ShowAt(anchor, new FlyoutShowOptions { Position = position });
 			}
 			return flyout;
+		}
+
+		private static void InsertOpenInOptions(IList<MenuFlyoutItemBase> items, string path, Style itemStyle,
+			Action<string>? onOpenInNewTab, Action<string>? onOpenInNewWindow)
+		{
+			for (int i = 0; i < items.Count; i++)
+			{
+				if (items[i] is MenuFlyoutItem flyoutItem
+					&& string.Equals(flyoutItem.Text, "Open", StringComparison.OrdinalIgnoreCase))
+				{
+					var insertIndex = i + 1;
+
+					if (onOpenInNewTab != null)
+					{
+						var newTabItem = new MenuFlyoutItem
+						{
+							Text = "Open in new tab",
+							Style = itemStyle
+						};
+						ApplyItemResources(newTabItem, includeSubMenuStateResources: false);
+						var capturedPath = path;
+						newTabItem.Click += (_, _) => onOpenInNewTab(capturedPath);
+						items.Insert(insertIndex++, newTabItem);
+					}
+
+					if (onOpenInNewWindow != null)
+					{
+						var newWindowItem = new MenuFlyoutItem
+						{
+							Text = "Open in new window",
+							Style = itemStyle
+						};
+						ApplyItemResources(newWindowItem, includeSubMenuStateResources: false);
+						var capturedPath = path;
+						newWindowItem.Click += (_, _) => onOpenInNewWindow(capturedPath);
+						items.Insert(insertIndex++, newWindowItem);
+					}
+
+					if (insertIndex > i + 1)
+					{
+						items.Insert(insertIndex, new MenuFlyoutSeparator { Margin = s_separatorMargin });
+					}
+
+					return;
+				}
+			}
 		}
 
 		private static void ShowPropertiesDialog(string path, IntPtr hwndOwner)

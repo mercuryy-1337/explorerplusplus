@@ -14,6 +14,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Win32;
 using System;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -48,7 +49,7 @@ namespace ExplorerPlusPlus.WinUIHost
 		private readonly UISettings m_uiSettings = new();
 		private ShellRootViewModel ViewModel { get; }
 
-		public MainWindow()
+		public MainWindow(string? initialPath = null)
 		{
 			try
 			{
@@ -65,6 +66,12 @@ namespace ExplorerPlusPlus.WinUIHost
 				ViewModel = new ShellRootViewModel();
 				AppendLog("ShellRootViewModel created");
 				RootLayout.DataContext = ViewModel;
+
+				if (!string.IsNullOrWhiteSpace(initialPath))
+				{
+					RootLayout.Loaded += (_, _) => ViewModel.TryNavigateToPath(initialPath);
+				}
+
 				RefreshNavToolbarButtonVisuals();
 				AppendLog("DataContext assigned");
 			}
@@ -124,7 +131,18 @@ namespace ExplorerPlusPlus.WinUIHost
 				&& !string.IsNullOrWhiteSpace(item.ActivationPath))
 			{
 				NativeShellContextMenu.ShowContextMenuAt(item.ActivationPath, element, e.GetPosition(element),
-					onNavigate: path => ViewModel.TryNavigateToPath(path));
+					onNavigate: path => ViewModel.TryNavigateToPath(path),
+					onOpenInNewTab: path => ViewModel.OpenNewTabAtPath(path),
+				onOpenInNewWindow: path =>
+				{
+					try
+					{
+						var processPath = Environment.ProcessPath;
+						if (!string.IsNullOrEmpty(processPath))
+							Process.Start(new ProcessStartInfo(processPath, path) { UseShellExecute = true });
+					}
+					catch { }
+				});
 				e.Handled = true;
 			}
 		}
@@ -945,7 +963,18 @@ namespace ExplorerPlusPlus.WinUIHost
 			folder.IsRightClicked = true;
 
 			var flyout = NativeShellContextMenu.ShowContextMenuAt(folder.ActivationPath, element, e.GetPosition(element),
-				onNavigate: path => ViewModel.TryNavigateToPath(path));
+				onNavigate: path => ViewModel.TryNavigateToPath(path),
+				onOpenInNewTab: path => ViewModel.OpenNewTabAtPath(path),
+				onOpenInNewWindow: path =>
+				{
+					try
+					{
+						var processPath = Environment.ProcessPath;
+						if (!string.IsNullOrEmpty(processPath))
+							Process.Start(new ProcessStartInfo(processPath, path) { UseShellExecute = true });
+					}
+					catch { }
+				});
 			if (flyout != null)
 			{
 				flyout.Closed += (_, _) =>
