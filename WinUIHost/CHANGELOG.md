@@ -2,6 +2,28 @@
 
 This changelog tracks the WinUI host line separately from the upstream Explorer++ history.
 
+## 1.1.0.7 - 2026-05-02
+
+### Added
+
+- Added "Open in new tab" and "Open in new window" options in the right click context menu
+
+### Changed
+
+- Completely overhauled the right click context menu to be on par with the native windows context menu
+- Modifed the background of the right click context menu
+- The open button in the context menu now opens the selected folder within the app
+- Made the tab colour the same as the rest of the app
+
+### Fixed
+
+- Double clicking a folder or file in the main window pane would not work if you clicked outside of the text area
+
+
+### Packaging
+
+- Updated the WinUI host version from 1.1.0.6 to 1.1.0.7.
+
 ## 1.1.0.6 - 2026-04-27
 
 ### Added

@@ -92,7 +92,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.ColumnSpan="3" Background="{ThemeResource ShellSurfaceBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1,1,1,0" CornerRadius="10,10,0,0" Opacity="{Binding SelectedBackgroundOpacity}" />
+                                <Border Grid.ColumnSpan="3" Background="{ThemeResource ShellChromeBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1,1,1,0" CornerRadius="10,10,0,0" Opacity="{Binding SelectedBackgroundOpacity}" />
                                 <Button Grid.Column="0" Style="{StaticResource TabSelectButtonStyle}" AutomationProperties.Name="{Binding TabAutomationName}" Click="TabButton_Click" PointerEntered="TabButton_PointerEntered" PointerExited="TabButton_PointerExited" PointerPressed="TabButton_PointerPressed" PointerReleased="TabButton_PointerReleased" PointerCanceled="TabButton_PointerCanceled" PointerCaptureLost="TabButton_PointerCaptureLost">
                                     <Grid Padding="14,0,12,0" ColumnSpacing="10">
                                         <Grid.ColumnDefinitions>
