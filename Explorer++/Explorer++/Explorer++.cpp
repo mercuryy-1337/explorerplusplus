@@ -23,6 +23,7 @@
 #include "MenuRanges.h"
 #include "Plugins/PluginManager.h"
 #include "ResourceLoader.h"
+#include "Revamp/RevampShellHost.h"
 #include "ShellBrowser/ShellBrowserImpl.h"
 #include "ShellTreeView/ShellTreeView.h"
 #include "StatusBar.h"
@@ -48,7 +49,6 @@ Explorerplusplus::Explorerplusplus(App *app, const WindowStorageData *storageDat
 	m_hContainer(CreateMainWindow(storageData)),
 	m_commandController(this, app->GetConfig(), app->GetPlatformContext()->GetClipboardStore(),
 		app->GetResourceLoader()),
-	m_tabBarBackgroundBrush(CreateSolidBrush(TAB_BAR_DARK_MODE_BACKGROUND_COLOR)),
 	m_pluginMenuManager(m_hContainer, MENU_PLUGIN_START_ID, MENU_PLUGIN_END_ID),
 	m_acceleratorUpdater(app->GetAcceleratorManager()),
 	m_pluginCommandManager(app->GetAcceleratorManager(), ACCELERATOR_PLUGIN_START_ID,
@@ -172,6 +172,7 @@ void Explorerplusplus::Initialize(const WindowStorageData *storageData)
 	CreateMainRebarAndChildren(storageData);
 	InitializeDisplayWindow();
 	InitializeTabs();
+	CreateRevampShellHost();
 	CreateFolderControls();
 
 	/* All child windows MUST be resized before
@@ -197,6 +198,11 @@ void Explorerplusplus::Initialize(const WindowStorageData *storageData)
 		std::make_unique<ThemeWindowTracker>(m_hContainer, m_app->GetThemeManager());
 
 	SetLifecycleState(LifecycleState::Main);
+}
+
+void Explorerplusplus::CreateRevampShellHost()
+{
+	m_revampShellHost = Revamp::ShellHost::Create(m_hContainer);
 }
 
 void Explorerplusplus::InitializeDisplayWindow()

@@ -65,6 +65,11 @@ class TaskbarThumbnails;
 class ThemeWindowTracker;
 class WindowSubclass;
 
+namespace Revamp
+{
+class ShellHost;
+}
+
 namespace Applications
 {
 class ApplicationToolbar;
@@ -139,8 +144,6 @@ private:
 
 	static const UINT_PTR LISTVIEW_ITEM_CHANGED_TIMER_ID = 100001;
 	static const UINT LISTVIEW_ITEM_CHANGED_TIMEOUT = 50;
-
-	static inline constexpr COLORREF TAB_BAR_DARK_MODE_BACKGROUND_COLOR = RGB(25, 25, 25);
 
 	static constexpr wchar_t PLUGIN_FOLDER_NAME[] = L"plugins";
 
@@ -277,6 +280,7 @@ private:
 		const std::vector<RebarBandStorageInfo> &rebarStorageInfo);
 	LRESULT RebarSubclass(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	void CreateFolderControls();
+	void CreateRevampShellHost();
 	void CreateAddressBar();
 	void CreateMainToolbar(
 		const std::optional<MainToolbarStorage::MainToolbarButtons> &initialButtons);
@@ -403,8 +407,8 @@ private:
 
 	std::unique_ptr<BrowserPane> m_browserPane;
 
-	/* Tabs. */
-	wil::unique_hbrush m_tabBarBackgroundBrush;
+	/* Revamp. */
+	std::unique_ptr<Revamp::ShellHost> m_revampShellHost;
 
 	/* Theming. */
 	std::unique_ptr<ThemeWindowTracker> m_themeWindowTracker;

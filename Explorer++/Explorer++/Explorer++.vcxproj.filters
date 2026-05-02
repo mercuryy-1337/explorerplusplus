@@ -322,6 +322,15 @@
     <ClCompile Include="FolderView.cpp">
       <Filter>Context Menu Support</Filter>
     </ClCompile>
+    <ClCompile Include="Revamp\RevampThemeTokens.cpp">
+      <Filter>Revamp</Filter>
+    </ClCompile>
+    <ClCompile Include="Revamp\RevampShellHost.cpp">
+      <Filter>Revamp</Filter>
+    </ClCompile>
+    <ClCompile Include="Revamp\RevampWindow.cpp">
+      <Filter>Revamp</Filter>
+    </ClCompile>
     <ClCompile Include="NewMenuClient.cpp">
       <Filter>Context Menu Support\New Menu</Filter>
     </ClCompile>
@@ -1962,6 +1971,15 @@
     <ClInclude Include="ShellEntryCollection.h">
       <Filter>Shell</Filter>
     </ClInclude>
+    <ClInclude Include="Revamp\RevampThemeTokens.h">
+      <Filter>Revamp</Filter>
+    </ClInclude>
+    <ClInclude Include="Revamp\RevampShellHost.h">
+      <Filter>Revamp</Filter>
+    </ClInclude>
+    <ClInclude Include="Revamp\RevampWindow.h">
+      <Filter>Revamp</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Explorer++.rc">
@@ -1995,6 +2013,12 @@
     </None>
     <None Include="VersionConstants.h">
       <Filter>Core</Filter>
+    </None>
+    <None Include="Revamp\milestone.md">
+      <Filter>Revamp</Filter>
+    </None>
+    <None Include="Revamp\phase-01-visual-spec.md">
+      <Filter>Revamp</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -2207,6 +2231,9 @@
     </Filter>
     <Filter Include="Directory Watching">
       <UniqueIdentifier>{f250fc00-1a66-44d8-a30a-9840ad247acd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Revamp">
+      <UniqueIdentifier>{f0f78ad8-f6f2-4b2b-a757-b7ac92b319f0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

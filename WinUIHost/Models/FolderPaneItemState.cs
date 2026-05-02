@@ -19,6 +19,7 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		private bool m_isExpanded;
 		private bool m_isPointerOver;
 		private bool m_isSelected;
+		private bool m_isRightClicked;
 		private int m_depth;
 
 		public string Title
@@ -124,6 +125,18 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 			}
 		}
 
+		public bool IsRightClicked
+		{
+			get => m_isRightClicked;
+			set
+			{
+				if (SetProperty(ref m_isRightClicked, value))
+				{
+					OnPropertyChanged(nameof(RowBackgroundOpacity));
+				}
+			}
+		}
+
 		public int Depth
 		{
 			get => m_depth;
@@ -139,7 +152,7 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		}
 
 		public string ExpandIndicator => !CanExpand || IsHeader ? string.Empty : (IsExpanded ? "\uE70D" : "\uE76C");
-		public double RowBackgroundOpacity => IsHeader ? 0.0 : (IsSelected ? 1.0 : (IsPointerOver ? 0.55 : 0.0));
+		public double RowBackgroundOpacity => IsHeader ? 0.0 : (IsSelected ? 1.0 : (IsRightClicked ? 0.55 : (IsPointerOver ? 0.55 : 0.0)));
 		public double SelectedBackgroundOpacity => IsSelected && !IsHeader ? 1.0 : 0.0;
 		public double SelectionBarOpacity => IsSelected && !CanExpand && !IsHeader ? 1.0 : 0.0;
 		public double ChevronOpacity => CanExpand && !IsHeader ? 1.0 : 0.0;

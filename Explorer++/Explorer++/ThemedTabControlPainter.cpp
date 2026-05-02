@@ -4,13 +4,60 @@
 
 #include "stdafx.h"
 #include "ThemedTabControlPainter.h"
-#include "ColorProvider.h"
+#include "Revamp/RevampThemeTokens.h"
+#include "../Helper/DpiCompatibility.h"
 #include "../Helper/TabHelper.h"
 #include "../Helper/WindowHelper.h"
 
-ThemedTabControlPainter::ThemedTabControlPainter(HWND hwnd, const ColorProvider *colorProvider) :
+namespace
+{
+
+void AddRoundedTopTabPath(Gdiplus::GraphicsPath &path, const RECT &rect, int radius)
+{
+	int diameter = radius * 2;
+
+	path.AddArc(rect.left, rect.top, diameter, diameter, 180.0f, 90.0f);
+	path.AddArc(rect.right - diameter, rect.top, diameter, diameter, 270.0f, 90.0f);
+	path.AddLine(static_cast<INT>(rect.right), static_cast<INT>(rect.top + radius),
+		static_cast<INT>(rect.right), static_cast<INT>(rect.bottom));
+	path.AddLine(static_cast<INT>(rect.right), static_cast<INT>(rect.bottom),
+		static_cast<INT>(rect.left), static_cast<INT>(rect.bottom));
+	path.AddLine(static_cast<INT>(rect.left), static_cast<INT>(rect.bottom),
+		static_cast<INT>(rect.left), static_cast<INT>(rect.top + radius));
+	path.CloseFigure();
+}
+
+COLORREF GetTabBandColor(bool darkMode)
+{
+	return Revamp::ResolveShellChromeColor(darkMode);
+}
+
+COLORREF GetTabFillColor(bool darkMode, bool selected, bool hot)
+{
+	if (selected)
+	{
+		return Revamp::ResolveShellSurfaceColor(darkMode);
+	}
+
+	if (hot)
+	{
+		return Revamp::ResolveShellButtonHoverColor(darkMode);
+	}
+
+	return Revamp::ResolveShellChromeColor(darkMode);
+}
+
+COLORREF GetTabTextColor(bool darkMode, bool selected)
+{
+	return selected ? Revamp::ResolveShellTextColor(darkMode)
+					 : Revamp::ResolveShellSecondaryTextColor(darkMode);
+}
+
+} // namespace
+
+ThemedTabControlPainter::ThemedTabControlPainter(HWND hwnd, bool darkMode) :
 	m_hwnd(hwnd),
-	m_colorProvider(colorProvider)
+	m_darkMode(darkMode)
 {
 }
 
@@ -49,9 +96,14 @@ void ThemedTabControlPainter::Paint(HDC hdc, const RECT &paintRect)
 	auto res = GetClientRect(m_hwnd, &clientRect);
 	DCHECK(res);
 
-	RECT bottomEdgeRect = { clientRect.left, clientRect.bottom - 2, clientRect.right,
-		clientRect.bottom - 1 };
-	int frameRes = FrameRect(hdc, &bottomEdgeRect, m_colorProvider->GetBorderBrush());
+	auto bandBrush = wil::unique_hbrush(CreateSolidBrush(GetTabBandColor(m_darkMode)));
+	int fillRes = FillRect(hdc, &clientRect, bandBrush.get());
+	DCHECK_NE(fillRes, 0);
+
+	auto borderBrush = wil::unique_hbrush(CreateSolidBrush(Revamp::ResolveShellBorderColor(m_darkMode)));
+	RECT bottomEdgeRect = { clientRect.left, clientRect.bottom - 1, clientRect.right,
+		clientRect.bottom };
+	int frameRes = FillRect(hdc, &bottomEdgeRect, borderBrush.get());
 	DCHECK_NE(frameRes, 0);
 
 	int modeRes = SetBkMode(hdc, TRANSPARENT);
@@ -89,6 +141,8 @@ void ThemedTabControlPainter::DrawTab(int index, HDC hdc)
 
 	auto itemRect = GetTabRect(index);
 	RECT backgroundRect = itemRect;
+	int radius = DpiCompatibility::GetInstance().ScaleValue(m_hwnd,
+		Revamp::ThemeMetricTokens::TabCornerRadius);
 
 	if (isSelected)
 	{
@@ -97,47 +151,51 @@ void ThemedTabControlPainter::DrawTab(int index, HDC hdc)
 		backgroundRect.bottom += 1;
 	}
 
-	auto backgroundBrush = isSelected ? m_colorProvider->GetSelectedItemBackgroundBrush()
-		: isHot                       ? m_colorProvider->GetHotItemBackgroundBrush()
-									  : m_colorProvider->GetTabBackgroundBrush();
-	int res = FillRect(hdc, &backgroundRect, backgroundBrush);
-	DCHECK_NE(res, 0);
+	backgroundRect.left += DpiCompatibility::GetInstance().ScaleValue(m_hwnd, 4);
+	backgroundRect.right -= DpiCompatibility::GetInstance().ScaleValue(m_hwnd, 4);
 
 	Gdiplus::Graphics graphics(hdc);
+	graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+
+	Gdiplus::Color fillColor;
+	fillColor.SetFromCOLORREF(GetTabFillColor(m_darkMode, isSelected, isHot));
+	Gdiplus::SolidBrush fillBrush(fillColor);
+	Gdiplus::GraphicsPath path;
+	AddRoundedTopTabPath(path, backgroundRect, radius);
+	graphics.FillPath(&fillBrush, &path);
+
 	Gdiplus::Color borderColor;
-	borderColor.SetFromCOLORREF(m_colorProvider->GetBorderColor());
+	borderColor.SetFromCOLORREF(Revamp::ResolveShellBorderColor(m_darkMode));
 	Gdiplus::Pen borderPen(borderColor);
 	Gdiplus::Status status;
+	status = graphics.DrawPath(&borderPen, &path);
+	DCHECK_EQ(status, Gdiplus::Ok);
 
-	if (index == 0)
+	if (isSelected)
 	{
-		status = graphics.DrawLine(&borderPen, static_cast<int>(itemRect.left), itemRect.top,
-			itemRect.left, itemRect.bottom);
+		Gdiplus::Color accentColor;
+		accentColor.SetFromCOLORREF(Revamp::ResolveShellAccentColor(m_darkMode));
+		Gdiplus::Pen accentPen(accentColor,
+			static_cast<Gdiplus::REAL>(DpiCompatibility::GetInstance().ScaleValue(m_hwnd,
+				Revamp::ThemeMetricTokens::SelectionBarWidth)));
+		status = graphics.DrawLine(&accentPen,
+			static_cast<int>(backgroundRect.left) + radius,
+			static_cast<int>(backgroundRect.bottom)
+				- DpiCompatibility::GetInstance().ScaleValue(m_hwnd,
+					Revamp::ThemeMetricTokens::SelectionBarWidth),
+			static_cast<int>(backgroundRect.right) - radius,
+			static_cast<int>(backgroundRect.bottom)
+				- DpiCompatibility::GetInstance().ScaleValue(m_hwnd,
+					Revamp::ThemeMetricTokens::SelectionBarWidth));
 		DCHECK_EQ(status, Gdiplus::Ok);
 	}
 
-	int rightBorderTop = itemRect.top;
-
-	// If this is the tab before the selected tab, then the border needs to be raised to the top of
-	// the viewport (to match the top and right edge for the selected tab).
-	if (index == (selectedIndex - 1))
-	{
-		rightBorderTop = 0;
-	}
-
-	status = graphics.DrawLine(&borderPen, static_cast<int>(itemRect.right) - 1, rightBorderTop,
-		itemRect.right - 1, itemRect.bottom);
-	DCHECK_EQ(status, Gdiplus::Ok);
-
-	status = graphics.DrawLine(&borderPen, static_cast<int>(itemRect.left), itemRect.top,
-		itemRect.right - 1, itemRect.top);
-	DCHECK_EQ(status, Gdiplus::Ok);
-
 	auto text = TabHelper::GetItemText(m_hwnd, index);
 
-	RECT textRect;
-	res = DrawText(hdc, text.c_str(), static_cast<int>(text.size()), &textRect, DT_CALCRECT);
-	DCHECK_NE(res, 0);
+	RECT textRect = { 0, 0, 0, 0 };
+	auto textExtentRes =
+		DrawText(hdc, text.c_str(), static_cast<int>(text.size()), &textRect, DT_CALCRECT);
+	DCHECK_NE(textExtentRes, 0);
 
 	auto imageList = TabCtrl_GetImageList(m_hwnd);
 
@@ -152,8 +210,8 @@ void ThemedTabControlPainter::DrawTab(int index, HDC hdc)
 	{
 		int iconWidth;
 		int iconHeight;
-		res = ImageList_GetIconSize(imageList, &iconWidth, &iconHeight);
-		CHECK(res);
+		auto imageListSizeRes = ImageList_GetIconSize(imageList, &iconWidth, &iconHeight);
+		CHECK(imageListSizeRes);
 
 		// Although a TCM_SETPADDING message exists, there is no corresponding message to retrieve
 		// the padding. Therefore, the padding will be calculated using the same method the control
@@ -171,12 +229,11 @@ void ThemedTabControlPainter::DrawTab(int index, HDC hdc)
 		drawRect.left += iconWidth + xPadding;
 	}
 
-	auto colorRes = SetTextColor(hdc,
-		isSelected ? m_colorProvider->GetTextColor() : m_colorProvider->GetBackgroundTextColor());
+	auto colorRes = SetTextColor(hdc, GetTabTextColor(m_darkMode, isSelected));
 	DCHECK_NE(colorRes, CLR_INVALID);
-	res = DrawText(hdc, text.c_str(), static_cast<int>(text.size()), &drawRect,
+	auto drawTextRes = DrawText(hdc, text.c_str(), static_cast<int>(text.size()), &drawRect,
 		DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-	DCHECK_NE(res, 0);
+	DCHECK_NE(drawTextRes, 0);
 }
 
 RECT ThemedTabControlPainter::GetTabRect(int index)

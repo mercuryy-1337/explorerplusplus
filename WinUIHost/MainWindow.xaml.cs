@@ -15,18 +15,11 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.Win32;
 using System;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
 using System.Runtime.Versioning;
-using System.Text;
-using System.Threading.Tasks;
-using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using Windows.System;
-using Windows.Storage;
 using Windows.UI.ViewManagement;
 using WinRT.Interop;
 
@@ -56,7 +49,7 @@ namespace ExplorerPlusPlus.WinUIHost
 		private readonly UISettings m_uiSettings = new();
 		private ShellRootViewModel ViewModel { get; }
 
-		public MainWindow()
+		public MainWindow(string? initialPath = null)
 		{
 			try
 			{
@@ -73,6 +66,12 @@ namespace ExplorerPlusPlus.WinUIHost
 				ViewModel = new ShellRootViewModel();
 				AppendLog("ShellRootViewModel created");
 				RootLayout.DataContext = ViewModel;
+
+				if (!string.IsNullOrWhiteSpace(initialPath))
+				{
+					RootLayout.Loaded += (_, _) => ViewModel.TryNavigateToPath(initialPath);
+				}
+
 				RefreshNavToolbarButtonVisuals();
 				AppendLog("DataContext assigned");
 			}
@@ -99,6 +98,52 @@ namespace ExplorerPlusPlus.WinUIHost
 				view.AddHandler(UIElement.PointerCanceledEvent, new PointerEventHandler(FilesView_PointerCanceled), true);
 				view.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(FilesView_PointerCaptureLost), true);
 				view.Tapped += FilesView_Tapped;
+				view.ContainerContentChanging += OnFilesViewContainerContentChanging;
+			}
+		}
+
+		private void OnFilesViewContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+		{
+			if (args.InRecycleQueue)
+			{
+				args.ItemContainer.DoubleTapped -= FilesContainer_DoubleTapped;
+				args.ItemContainer.RightTapped -= FilesContainer_RightTapped;
+			}
+			else
+			{
+				args.ItemContainer.DoubleTapped += FilesContainer_DoubleTapped;
+				args.ItemContainer.RightTapped += FilesContainer_RightTapped;
+			}
+		}
+
+		private void FilesContainer_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+		{
+			if (sender is FrameworkElement element && element.DataContext is FileItemState item)
+			{
+				ViewModel.ActivateFileItemCommand.Execute(item);
+				e.Handled = true;
+			}
+		}
+
+		private void FilesContainer_RightTapped(object sender, RightTappedRoutedEventArgs e)
+		{
+			if (sender is FrameworkElement element && element.DataContext is FileItemState item
+				&& !string.IsNullOrWhiteSpace(item.ActivationPath))
+			{
+				NativeShellContextMenu.ShowContextMenuAt(item.ActivationPath, element, e.GetPosition(element),
+					onNavigate: path => ViewModel.TryNavigateToPath(path),
+					onOpenInNewTab: path => ViewModel.OpenNewTabAtPath(path),
+				onOpenInNewWindow: path =>
+				{
+					try
+					{
+						var processPath = Environment.ProcessPath;
+						if (!string.IsNullOrEmpty(processPath))
+							Process.Start(new ProcessStartInfo(processPath, path) { UseShellExecute = true });
+					}
+					catch { }
+				});
+				e.Handled = true;
 			}
 		}
 
@@ -876,7 +921,10 @@ namespace ExplorerPlusPlus.WinUIHost
 					return;
 				}
 
-				ViewModel.SelectFolderCommand.Execute(folder);
+				if (point.Properties.PointerUpdateKind.Equals(Microsoft.UI.Input.PointerUpdateKind.LeftButtonPressed))
+				{
+					ViewModel.SelectFolderCommand.Execute(folder);
+				}
 			}
 		}
 
@@ -912,271 +960,33 @@ namespace ExplorerPlusPlus.WinUIHost
 				return;
 			}
 
-			ViewModel.SelectFolderCommand.Execute(folder);
-			var flyout = ShellContextMenuBuilder.Build(CreateFolderPaneContextMenuItems(folder));
-			flyout.ShowAt(element, new FlyoutShowOptions
-			{
-				Position = e.GetPosition(element)
-			});
-			e.Handled = true;
-		}
+			folder.IsRightClicked = true;
 
-		private ShellContextMenuItem[] CreateFolderPaneContextMenuItems(FolderPaneItemState folder)
-		{
-			var hasExistingFolderPath = TryGetExistingFolderPath(folder, out var folderPath);
-			var effectiveFolderPath = folderPath ?? string.Empty;
-
-			return new[]
-			{
-				new ShellContextMenuItem("Expand", () => ViewModel.ToggleFolderExpansionCommand.Execute(folder))
+			var flyout = NativeShellContextMenu.ShowContextMenuAt(folder.ActivationPath, element, e.GetPosition(element),
+				onNavigate: path => ViewModel.TryNavigateToPath(path),
+				onOpenInNewTab: path => ViewModel.OpenNewTabAtPath(path),
+				onOpenInNewWindow: path =>
 				{
-					IsEnabled = folder.CanExpand && !folder.IsExpanded
-				},
-				ShellContextMenuItem.Separator(),
-				new ShellContextMenuItem("Open in CMD", () => OpenFolderInCommandPrompt(effectiveFolderPath))
-				{
-					IsEnabled = hasExistingFolderPath
-				},
-				ShellContextMenuItem.Separator(),
-				new ShellContextMenuItem("Copy as path", () => CopyTextToClipboard(QuotePath(effectiveFolderPath)))
-				{
-					IsEnabled = hasExistingFolderPath
-				},
-				new ShellContextMenuItem("Send to")
-				{
-					IsEnabled = hasExistingFolderPath,
-					Items = new[]
+					try
 					{
-						new ShellContextMenuItem("Coming soon")
-						{
-							IsEnabled = false
-						}
+						var processPath = Environment.ProcessPath;
+						if (!string.IsNullOrEmpty(processPath))
+							Process.Start(new ProcessStartInfo(processPath, path) { UseShellExecute = true });
 					}
-				},
-				new ShellContextMenuItem("Copy", () => _ = CopyFolderToClipboardAsync(effectiveFolderPath))
-				{
-					IsEnabled = hasExistingFolderPath
-				},
-				new ShellContextMenuItem("New")
-				{
-					IsEnabled = hasExistingFolderPath,
-					Items = new[]
-					{
-						new ShellContextMenuItem("Folder", () => CreateFolder(folder, effectiveFolderPath))
-						{
-							IsEnabled = hasExistingFolderPath
-						}
-					}
-				},
-				ShellContextMenuItem.Separator(),
-				new ShellContextMenuItem("Properties", () => ShowFolderProperties(effectiveFolderPath))
-				{
-					IsEnabled = hasExistingFolderPath
-				}
-			};
-		}
-
-		private static bool TryGetExistingFolderPath(FolderPaneItemState folder, out string? folderPath)
-		{
-			folderPath = string.IsNullOrWhiteSpace(folder.ActivationPath)
-				? null
-				: folder.ActivationPath;
-
-			if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
-			{
-				folderPath = null;
-				return false;
-			}
-
-			return true;
-		}
-
-		private static string QuotePath(string path)
-		{
-			return $"\"{path}\"";
-		}
-
-		private static void OpenFolderInCommandPrompt(string folderPath)
-		{
-			try
-			{
-				Process.Start(new ProcessStartInfo
-				{
-					FileName = "cmd.exe",
-					Arguments = $"/K cd /d {QuotePath(folderPath)}",
-					UseShellExecute = true,
-					WorkingDirectory = folderPath
+					catch { }
 				});
-			}
-			catch
+			if (flyout != null)
 			{
-			}
-		}
-
-		private static void CopyTextToClipboard(string text)
-		{
-			var package = new DataPackage();
-			package.SetText(text);
-			Clipboard.SetContent(package);
-			Clipboard.Flush();
-		}
-
-		private static async Task CopyFolderToClipboardAsync(string folderPath)
-		{
-			try
-			{
-				var storageFolder = await StorageFolder.GetFolderFromPathAsync(folderPath);
-				var package = new DataPackage
+				flyout.Closed += (_, _) =>
 				{
-					RequestedOperation = DataPackageOperation.Copy
+					folder.IsRightClicked = false;
 				};
-
-				package.SetStorageItems(new[] { storageFolder });
-				Clipboard.SetContent(package);
-				Clipboard.Flush();
 			}
-			catch
+			else
 			{
+				folder.IsRightClicked = false;
 			}
-		}
-
-		private void CreateFolder(FolderPaneItemState folder, string parentPath)
-		{
-			try
-			{
-				var newFolderPath = GetUniqueNewFolderPath(parentPath);
-				Directory.CreateDirectory(newFolderPath);
-				folder.CanExpand = true;
-				ViewModel.RefreshCommand.Execute(null);
-			}
-			catch
-			{
-			}
-		}
-
-		private static string GetUniqueNewFolderPath(string parentPath)
-		{
-			const string baseFolderName = "New folder";
-			var candidatePath = Path.Combine(parentPath, baseFolderName);
-			var suffix = 2;
-
-			while (Directory.Exists(candidatePath) || File.Exists(candidatePath))
-			{
-				candidatePath = Path.Combine(parentPath, $"{baseFolderName} ({suffix++})");
-			}
-
-			return candidatePath;
-		}
-
-		private void ShowFolderProperties(string folderPath)
-		{
-			if (!Directory.Exists(folderPath) && !File.Exists(folderPath))
-			{
-				return;
-			}
-
-			var windowHandle = WindowNative.GetWindowHandle(this);
-
-			if (TryShowPropertiesWithDataObject(folderPath, windowHandle))
-			{
-				return;
-			}
-
-			if (TryShowPropertiesWithPath(folderPath, windowHandle))
-			{
-				return;
-			}
-
-			TryShowPropertiesWithShellVerb(folderPath, windowHandle);
-		}
-
-		private static bool TryShowPropertiesWithDataObject(string path, IntPtr windowHandle)
-		{
-			IShellFolder? desktopFolder = null;
-			object? dataObject = null;
-			IntPtr itemIdList = IntPtr.Zero;
-
-			try
-			{
-				int hr = SHGetDesktopFolder(out desktopFolder);
-				if (hr < 0 || desktopFolder == null)
-				{
-					return false;
-				}
-
-				uint eaten = 0;
-				uint attributes = 0;
-				hr = desktopFolder.ParseDisplayName(windowHandle, IntPtr.Zero, path, ref eaten, out itemIdList, ref attributes);
-				if (hr < 0 || itemIdList == IntPtr.Zero)
-				{
-					return false;
-				}
-
-				var itemIdLists = new[] { itemIdList };
-				Guid dataObjectId = typeof(IDataObject).GUID;
-				hr = desktopFolder.GetUIObjectOf(windowHandle, (uint)itemIdLists.Length, itemIdLists, ref dataObjectId, IntPtr.Zero, out dataObject);
-				if (hr < 0 || dataObject is not IDataObject shellDataObject)
-				{
-					return false;
-				}
-
-				return SHMultiFileProperties(shellDataObject, 0) >= 0;
-			}
-			catch
-			{
-				return false;
-			}
-			finally
-			{
-				if (dataObject != null && Marshal.IsComObject(dataObject))
-				{
-					Marshal.ReleaseComObject(dataObject);
-				}
-
-				if (desktopFolder != null && Marshal.IsComObject(desktopFolder))
-				{
-					Marshal.ReleaseComObject(desktopFolder);
-				}
-
-				if (itemIdList != IntPtr.Zero)
-				{
-					Marshal.FreeCoTaskMem(itemIdList);
-				}
-			}
-		}
-
-		private static bool TryShowPropertiesWithPath(string path, IntPtr windowHandle)
-		{
-			try
-			{
-				return SHObjectProperties(windowHandle, ShopFilePath, path, null);
-			}
-			catch
-			{
-				return false;
-			}
-		}
-
-		private static bool TryShowPropertiesWithShellVerb(string path, IntPtr windowHandle)
-		{
-			try
-			{
-				var executeInfo = new ShellExecuteInfo
-				{
-					cbSize = Marshal.SizeOf<ShellExecuteInfo>(),
-					fMask = SeeMaskInvokeIdList | SeeMaskFlagNoUi,
-					hwnd = windowHandle,
-					lpVerb = "properties",
-					lpFile = path,
-					nShow = SwShownormal
-				};
-
-				return ShellExecuteEx(ref executeInfo);
-			}
-			catch
-			{
-				return false;
-			}
+			e.Handled = true;
 		}
 
 		private void AddressBar_Tapped(object sender, TappedRoutedEventArgs e)
@@ -1545,91 +1355,11 @@ namespace ExplorerPlusPlus.WinUIHost
 			return null;
 		}
 
-		private const uint SeeMaskInvokeIdList = 0x0000000C;
-		private const uint SeeMaskFlagNoUi = 0x00000400;
-		private const uint ShopFilePath = 0x00000002;
-		private const int SwShownormal = 1;
-
 		[DllImport("user32.dll", CharSet = CharSet.Unicode)]
 		private static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
-
-		[DllImport("shell32.dll")]
-		private static extern int SHGetDesktopFolder([MarshalAs(UnmanagedType.Interface)] out IShellFolder shellFolder);
 
 		[DllImport("shell32.dll", CharSet = CharSet.Unicode)]
 		private static extern uint ExtractIconEx(string fileName, int iconIndex, out IntPtr largeIcon,
 			out IntPtr smallIcon, uint iconCount);
-
-		[DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-		private static extern bool ShellExecuteEx(ref ShellExecuteInfo executeInfo);
-
-		[DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-		private static extern int SHMultiFileProperties([MarshalAs(UnmanagedType.Interface)] IDataObject dataObject, uint flags);
-
-		[DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-		[return: MarshalAs(UnmanagedType.Bool)]
-		private static extern bool SHObjectProperties(IntPtr hwnd, uint shopObjectType, string objectName, string? propertyPage);
-
-		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-		private struct ShellExecuteInfo
-		{
-			public int cbSize;
-			public uint fMask;
-			public IntPtr hwnd;
-			public string? lpVerb;
-			public string? lpFile;
-			public string? lpParameters;
-			public string? lpDirectory;
-			public int nShow;
-			public IntPtr hInstApp;
-			public IntPtr lpIDList;
-			public string? lpClass;
-			public IntPtr hkeyClass;
-			public uint dwHotKey;
-			public IntPtr hIconOrMonitor;
-			public IntPtr hProcess;
-		}
-
-		[ComImport]
-		[Guid("000214E6-0000-0000-C000-000000000046")]
-		[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-		private interface IShellFolder
-		{
-			[PreserveSig]
-			int ParseDisplayName(IntPtr hwnd, IntPtr pbc, [MarshalAs(UnmanagedType.LPWStr)] string displayName,
-				ref uint eaten, out IntPtr itemIdList, ref uint attributes);
-
-			[PreserveSig]
-			int EnumObjects(IntPtr hwnd, int flags, out IntPtr enumIdList);
-
-			[PreserveSig]
-			int BindToObject(IntPtr itemIdList, IntPtr pbc, ref Guid interfaceId, out IntPtr shellObject);
-
-			[PreserveSig]
-			int BindToStorage(IntPtr itemIdList, IntPtr pbc, ref Guid interfaceId, out IntPtr shellStorage);
-
-			[PreserveSig]
-			int CompareIDs(IntPtr lParam, IntPtr firstItemIdList, IntPtr secondItemIdList);
-
-			[PreserveSig]
-			int CreateViewObject(IntPtr hwndOwner, ref Guid interfaceId, out IntPtr viewObject);
-
-			[PreserveSig]
-			int GetAttributesOf(uint itemCount, [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0)] IntPtr[] itemIdLists,
-				ref uint attributes);
-
-			[PreserveSig]
-			int GetUIObjectOf(IntPtr hwndOwner, uint itemCount,
-				[MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] IntPtr[] itemIdLists,
-				ref Guid interfaceId, IntPtr reserved,
-				[MarshalAs(UnmanagedType.IUnknown)] out object shellObject);
-
-			[PreserveSig]
-			int GetDisplayNameOf(IntPtr itemIdList, uint flags, out IntPtr name);
-
-			[PreserveSig]
-			int SetNameOf(IntPtr hwnd, IntPtr itemIdList, [MarshalAs(UnmanagedType.LPWStr)] string name,
-				uint flags, out IntPtr outputItemIdList);
-		}
 	}
 }

@@ -1523,8 +1523,11 @@
     <ClCompile Include="WindowStorage.cpp" />
     <ClCompile Include="WindowXmlStorage.cpp" />
     <ClCompile Include="WinMain.cpp" />
+    <ClCompile Include="Revamp\RevampShellHost.cpp" />
+    <ClCompile Include="Revamp\RevampWindow.cpp" />
     <ClCompile Include="XmlAppStorage.cpp" />
     <ClCompile Include="XmlAppStorageFactory.cpp" />
+    <ClCompile Include="Revamp\RevampThemeTokens.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\targetver.h" />
@@ -1590,6 +1593,8 @@
     <ClInclude Include="ShellEntry.h" />
     <ClInclude Include="ShellItemFilter.h" />
     <ClInclude Include="ShellEntryCollection.h" />
+    <ClInclude Include="Revamp\RevampThemeTokens.h" />
+    <ClInclude Include="Revamp\RevampWindow.h" />
     <ClInclude Include="ShellWatcherManager.h" />
     <ClInclude Include="ShellTreeView\ShellTreeViewContextMenuDelegate.h" />
     <ClInclude Include="SortModeMenuMappings.h" />
@@ -1878,8 +1883,11 @@
     <ClInclude Include="WindowXmlStorage.h" />
     <ClInclude Include="XmlAppStorage.h" />
     <ClInclude Include="XmlAppStorageFactory.h" />
+    <ClInclude Include="Revamp\RevampShellHost.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Revamp\milestone.md" />
+    <None Include="Revamp\phase-01-visual-spec.md" />
     <None Include="res\Display Window.ico" />
     <None Include="res\Explorer++.ico" />
     <None Include="res\Filtering Applied.bmp" />

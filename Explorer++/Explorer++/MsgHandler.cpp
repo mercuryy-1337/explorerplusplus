@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include "Explorer++.h"
 #include "AddressBar.h"
+#include "AddressBarView.h"
 #include "App.h"
 #include "ColorRule.h"
 #include "Config.h"
@@ -27,6 +28,8 @@
 #include "StatusBarView.h"
 #include "Storage.h"
 #include "SystemFontHelper.h"
+#include "Revamp/RevampShellHost.h"
+#include "Revamp/RevampThemeTokens.h"
 #include "TabBacking.h"
 #include "TabContainer.h"
 #include "TaskbarThumbnails.h"
@@ -46,6 +49,21 @@
 #include <glog/logging.h>
 #include <wil/resource.h>
 #include <algorithm>
+
+namespace
+{
+
+HBRUSH GetRevampTabBandBrush(bool darkMode)
+{
+	static const wil::unique_hbrush lightBrush(
+		CreateSolidBrush(Revamp::ResolveShellChromeColor(false)));
+	static const wil::unique_hbrush darkBrush(
+		CreateSolidBrush(Revamp::ResolveShellChromeColor(true)));
+
+	return darkMode ? darkBrush.get() : lightBrush.get();
+}
+
+} // namespace
 
 void Explorerplusplus::OpenDefaultItem(OpenFolderDisposition openFolderDisposition)
 {
@@ -313,10 +331,11 @@ void Explorerplusplus::UpdateLayout()
 		dpiCompatibility.ScaleValue(m_displayWindow->GetHWND(), DISPLAY_WINDOW_MINIMUM_HEIGHT));
 
 	auto rebarHeight = m_mainRebarView->GetHeight();
-	SetWindowPos(m_mainRebarView->GetHWND(), nullptr, 0, 0, mainWindowWidth, rebarHeight,
-		SWP_NOZORDER | SWP_NOMOVE);
+	int revampTitleHeight = m_revampShellHost ? m_revampShellHost->GetTitleBarHeight() : 0;
+	SetWindowPos(m_mainRebarView->GetHWND(), nullptr, 0, revampTitleHeight, mainWindowWidth,
+		rebarHeight, SWP_NOZORDER);
 
-	int indentRebar = rebarHeight;
+	int indentRebar = revampTitleHeight + rebarHeight;
 
 	if (m_config->showStatusBar.get())
 	{
@@ -347,6 +366,12 @@ void Explorerplusplus::UpdateLayout()
 	RECT displayRect = { 0, 0, 0, 0 };
 	TabCtrl_AdjustRect(GetActivePane()->GetTabContainer()->GetHWND(), true, &displayRect);
 	int tabWindowHeight = std::abs(displayRect.top);
+
+	if (m_revampShellHost)
+	{
+		m_revampShellHost->UpdateLayout(mainWindowWidth, rebarHeight,
+			m_bShowTabBar && !m_config->showTabBarAtBottom.get(), tabWindowHeight);
+	}
 
 	indentTop = indentRebar;
 
@@ -380,7 +405,7 @@ void Explorerplusplus::UpdateLayout()
 
 	if (!m_config->showTabBarAtBottom.get())
 	{
-		tabTop = indentRebar;
+		tabTop = revampTitleHeight + rebarHeight;
 	}
 	else
 	{
@@ -394,6 +419,27 @@ void Explorerplusplus::UpdateLayout()
 
 	SetWindowPos(GetActivePane()->GetTabContainer()->GetHWND(), nullptr, 0, 0, tabBackingWidth - 25,
 		tabWindowHeight, SWP_SHOWWINDOW | SWP_NOZORDER);
+
+	if (m_revampShellHost)
+	{
+		RECT toolbarRect = {};
+		RECT addressBarRect = {};
+
+		if (m_config->showMainToolbar.get() && IsWindowVisible(m_mainToolbar->GetHWND()))
+		{
+			GetWindowRect(m_mainToolbar->GetHWND(), &toolbarRect);
+			MapWindowPoints(HWND_DESKTOP, m_hContainer, reinterpret_cast<POINT *>(&toolbarRect), 2);
+		}
+
+		if (m_config->showAddressBar.get() && IsWindowVisible(m_addressBar->GetView()->GetHWND()))
+		{
+			GetWindowRect(m_addressBar->GetView()->GetHWND(), &addressBarRect);
+			MapWindowPoints(HWND_DESKTOP, m_hContainer,
+				reinterpret_cast<POINT *>(&addressBarRect), 2);
+		}
+
+		m_revampShellHost->UpdateControlBounds(toolbarRect, addressBarRect);
+	}
 
 	int holderTop;
 
@@ -487,12 +533,8 @@ std::optional<LRESULT> Explorerplusplus::OnCtlColorStatic(HWND hwnd, HDC hdc)
 
 	if (hwnd == m_tabBacking->GetHWND())
 	{
-		if (!m_app->GetDarkModeManager()->IsDarkModeEnabled())
-		{
-			return std::nullopt;
-		}
-
-		return reinterpret_cast<INT_PTR>(m_tabBarBackgroundBrush.get());
+		return reinterpret_cast<INT_PTR>(
+			GetRevampTabBandBrush(m_app->GetDarkModeManager()->IsDarkModeEnabled()));
 	}
 
 	return std::nullopt;

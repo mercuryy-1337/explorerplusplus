@@ -34,7 +34,19 @@ namespace ExplorerPlusPlus.WinUIHost
 			try
 			{
 				AppendLog("OnLaunched start");
-				ShellWindow = new MainWindow();
+
+				var initialPath = args.Arguments;
+
+				if (string.IsNullOrWhiteSpace(initialPath))
+				{
+					var rawArgs = Environment.GetCommandLineArgs();
+					// Args[0] is the executable path, Args[1] (if any) is the path to open
+					if (rawArgs.Length > 1 && !string.IsNullOrWhiteSpace(rawArgs[1]))
+						initialPath = rawArgs[1];
+				}
+
+				AppendLog($"OnLaunched initialPath={initialPath ?? "(null)"}");
+				ShellWindow = new MainWindow(initialPath);
 				AppendLog("MainWindow created");
 				ShellWindow.Activate();
 				AppendLog("MainWindow activated");
