@@ -102,6 +102,7 @@ namespace ExplorerPlusPlus.WinUIHost
 				view.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(FilesView_PointerCaptureLost), true);
 				view.Tapped += FilesView_Tapped;
 				view.ContainerContentChanging += OnFilesViewContainerContentChanging;
+				view.AddHandler(UIElement.RightTappedEvent, new RightTappedEventHandler(FilesView_RightTappedBackground), false);
 			}
 		}
 
@@ -659,6 +660,20 @@ namespace ExplorerPlusPlus.WinUIHost
 		private void TabView_AddTabButtonClick(TabView sender, object args)
 		{
 			ViewModel.OpenNewTab();
+		}
+
+		private void FilesView_RightTappedBackground(object sender, RightTappedRoutedEventArgs e)
+		{
+			if (string.IsNullOrWhiteSpace(ViewModel.CurrentActivationPath)) return;
+			if (sender is not FrameworkElement element) return;
+
+			var flyout = NativeShellContextMenu.ShowBackgroundContextMenuAt(
+				ViewModel.CurrentActivationPath, element, e.GetPosition(element),
+				onSortColumn: param => ViewModel.SortFilesCommand.Execute(param),
+				onSortDirection: ascending => ViewModel.SetSortDirection(ascending),
+				onRefresh: () => ViewModel.RefreshCommand.Execute(null),
+				currentSortColumn: ViewModel.CurrentSortColumn,
+				currentSortAscending: ViewModel.CurrentSortAscending);
 		}
 
 		private static Border? GetFileListHeaderBackground(Button button)

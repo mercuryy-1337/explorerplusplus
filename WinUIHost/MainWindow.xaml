@@ -19,7 +19,6 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="{ThemeResource ShellTopBarBrush}" />
-        <Border Grid.Row="1" Background="{ThemeResource ShellChromeBrush}" />
         <Border Grid.Row="2" Background="{ThemeResource ShellChromeBrush}" />
         <Border Grid.Row="3" Background="{ThemeResource ShellChromeBrush}" />
 
@@ -39,6 +38,8 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{ThemeResource ShellChromeBrush}" />
 
             <Grid Grid.Row="0" Margin="16,10,16,10" ColumnSpacing="8">
                 <Grid.Resources>
@@ -180,7 +181,7 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="{ThemeResource ShellChromeBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
+                <Border Grid.Row="0" Background="{ThemeResource ShellTopBarBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
                     <Grid MinHeight="54" Padding="12,8">
                         <Grid.Resources>
                             <Style x:Key="CommandBarButtonStyle" TargetType="Button">
@@ -239,6 +240,7 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
+                            <!-- Example action bar / toolbar content, replace with actual commands and bindings as needed -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                                 <Button Style="{StaticResource CommandBarButtonStyle}">
                                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -297,6 +299,8 @@
                         </Grid>
                     </Grid>
                 </Border>
+
+                <Border Grid.Row="1" Background="{ThemeResource ShellChromeBrush}" />
 
                 <Border Grid.Row="1" Margin="0,12,0,0" Background="{ThemeResource ShellSurfaceBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="1" CornerRadius="12">
                     <Grid>

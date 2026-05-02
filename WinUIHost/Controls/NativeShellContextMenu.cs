@@ -212,6 +212,9 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 		private static extern int SHBindToParent(IntPtr pidl, ref Guid riid, out IntPtr ppv, out IntPtr ppidlLast);
 
 		[DllImport("shell32.dll")]
+		private static extern int SHBindToObject(IntPtr psf, IntPtr pidl, IntPtr pbc, ref Guid riid, out IntPtr ppv);
+
+		[DllImport("shell32.dll")]
 		private static extern void ILFree(IntPtr pidl);
 
 		[DllImport("user32.dll")]
@@ -343,6 +346,137 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 			{
 				DestroyMenu(hMenu);
 			}
+		}
+
+		/// <summary>
+		/// Builds a background context menu for the folder (empty-space right-click).
+		/// Uses the folder's own IContextMenu (CreateViewObject) and inserts View/Sort/Refresh at top.
+		/// </summary>
+		public static MenuFlyout? BuildBackgroundFlyout(string folderPath, IntPtr hwndOwner,
+			Action<string>? onSortColumn = null, Action<bool>? onSortDirection = null,
+			Action? onRefresh = null,
+			string? currentSortColumn = null, bool currentSortAscending = true)
+		{
+			var contextMenu = GetBackgroundContextMenuForPath(folderPath, hwndOwner);
+			if (contextMenu == null)
+				return null;
+
+			var hMenu = CreatePopupMenu();
+			if (hMenu == IntPtr.Zero)
+				return null;
+
+			const uint idCmdFirst = 1;
+			const uint idCmdLast = 0x7FFF;
+
+			try
+			{
+				var hr = contextMenu.QueryContextMenu(hMenu, 0, idCmdFirst, idCmdLast, CMF_NORMAL);
+				if (hr < 0)
+					return null;
+
+				var itemStyle = CreateItemStyle(typeof(MenuFlyoutItem));
+				var subItemStyle = CreateItemStyle(typeof(MenuFlyoutSubItem));
+				var flyout = new MenuFlyout
+				{
+					MenuFlyoutPresenterStyle = CreatePresenterStyle()
+				};
+
+				// Insert our custom items before shell items
+				InsertBackgroundOptions(flyout.Items, itemStyle, subItemStyle,
+					onSortColumn, onSortDirection, onRefresh,
+					currentSortColumn, currentSortAscending);
+				flyout.Items.Add(new MenuFlyoutSeparator { Margin = s_separatorMargin });
+
+				PopulateFlyoutItems(flyout.Items, hMenu, contextMenu, idCmdFirst, hwndOwner, folderPath, itemStyle, subItemStyle);
+
+				RemoveTrailingSeparators(flyout.Items);
+				RemoveDuplicateSeparators(flyout.Items);
+
+				if (flyout.Items.Count == 0)
+					return null;
+
+				return flyout;
+			}
+			finally
+			{
+				DestroyMenu(hMenu);
+			}
+		}
+
+		private static void InsertBackgroundOptions(IList<MenuFlyoutItemBase> items, Style itemStyle, Style subItemStyle,
+			Action<string>? onSortColumn, Action<bool>? onSortDirection, Action? onRefresh,
+			string? currentSortColumn, bool currentSortAscending)
+		{
+			var viewSub = new MenuFlyoutSubItem { Text = "View", Style = subItemStyle };
+			viewSub.IsEnabled = false;
+			viewSub.AllowFocusOnInteraction = false;
+			viewSub.IsTapEnabled = false;
+			ApplyItemResources(viewSub, includeSubMenuStateResources: true);
+			viewSub.Items.Add(new MenuFlyoutItem { Text = "Extra large icons", IsEnabled = false, Style = itemStyle });
+			viewSub.Items.Add(new MenuFlyoutItem { Text = "Large icons", IsEnabled = false, Style = itemStyle });
+			viewSub.Items.Add(new MenuFlyoutItem { Text = "Medium icons", IsEnabled = false, Style = itemStyle });
+			viewSub.Items.Add(new MenuFlyoutItem { Text = "Small icons", IsEnabled = false, Style = itemStyle });
+			viewSub.Items.Add(new MenuFlyoutItem { Text = "List", IsEnabled = false, Style = itemStyle });
+			viewSub.Items.Add(new MenuFlyoutItem { Text = "Details", IsEnabled = false, Style = itemStyle });
+			items.Add(viewSub);
+
+			var sortSub = new MenuFlyoutSubItem { Text = "Sort by", Style = subItemStyle };
+			sortSub.AllowFocusOnInteraction = false;
+			sortSub.IsTapEnabled = false;
+			ApplyItemResources(sortSub, includeSubMenuStateResources: true);
+
+			if (onSortColumn != null)
+			{
+				sortSub.Items.Add(CreateBackgroundMenuFlyoutItem("Name", itemStyle, () => onSortColumn("Name"),
+					isChecked: string.Equals(currentSortColumn, "Name", StringComparison.OrdinalIgnoreCase)));
+				sortSub.Items.Add(CreateBackgroundMenuFlyoutItem("Date", itemStyle, () => onSortColumn("Modified"),
+					isChecked: string.Equals(currentSortColumn, "Modified", StringComparison.OrdinalIgnoreCase)));
+				sortSub.Items.Add(CreateBackgroundMenuFlyoutItem("Type", itemStyle, () => onSortColumn("Type"),
+					isChecked: string.Equals(currentSortColumn, "Type", StringComparison.OrdinalIgnoreCase)));
+				sortSub.Items.Add(CreateBackgroundMenuFlyoutItem("Size", itemStyle, () => onSortColumn("Size"),
+					isChecked: string.Equals(currentSortColumn, "Size", StringComparison.OrdinalIgnoreCase)));
+			}
+
+			sortSub.Items.Add(new MenuFlyoutSeparator { Margin = s_separatorMargin });
+
+			if (onSortDirection != null)
+			{
+				sortSub.Items.Add(CreateBackgroundMenuFlyoutItem("Ascending", itemStyle, () => onSortDirection(true),
+					isChecked: currentSortAscending));
+				sortSub.Items.Add(CreateBackgroundMenuFlyoutItem("Descending", itemStyle, () => onSortDirection(false),
+					isChecked: !currentSortAscending));
+			}
+
+			items.Add(sortSub);
+
+			if (onRefresh != null)
+			{
+				var refreshItem = new MenuFlyoutItem { Text = "Refresh", Style = itemStyle };
+				ApplyItemResources(refreshItem, includeSubMenuStateResources: false);
+				refreshItem.Click += (_, _) => onRefresh();
+				items.Add(refreshItem);
+			}
+		}
+
+		private static MenuFlyoutItem CreateBackgroundMenuFlyoutItem(string text, Style itemStyle, Action action,
+			bool isChecked = false)
+		{
+			var item = new MenuFlyoutItem { Text = text, Style = itemStyle };
+			ApplyItemResources(item, includeSubMenuStateResources: false);
+			item.Click += (_, _) => action();
+
+			if (isChecked)
+			{
+				item.Icon = new FontIcon
+				{
+					Glyph = "\uE915",
+					FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"),
+					FontSize = 12,
+					Foreground = ResolveThemeBrush("ShellAccentBrush")
+				};
+			}
+
+			return item;
 		}
 
 		private static void PopulateFlyoutItems(IList<MenuFlyoutItemBase> items, IntPtr hMenu, IContextMenu contextMenu,
@@ -626,6 +760,38 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 			return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 		}
 
+		private static IContextMenu? GetBackgroundContextMenuForPath(string path, IntPtr hwndOwner)
+		{
+			IntPtr pidl = IntPtr.Zero;
+			IntPtr folderPtr = IntPtr.Zero;
+
+			try
+			{
+				var hr = SHParseDisplayName(path, IntPtr.Zero, out pidl, 0, out _);
+				if (hr < 0 || pidl == IntPtr.Zero)
+					return null;
+
+				var iidShellFolder = new Guid("000214E6-0000-0000-C000-000000000046");
+				hr = SHBindToObject(IntPtr.Zero, pidl, IntPtr.Zero, ref iidShellFolder, out folderPtr);
+				if (hr < 0 || folderPtr == IntPtr.Zero)
+					return null;
+
+				var folder = (IShellFolder)Marshal.GetObjectForIUnknown(folderPtr);
+
+				var iidContextMenu = new Guid("000214E4-0000-0000-C000-000000000046");
+				hr = folder.CreateViewObject(hwndOwner, ref iidContextMenu, out var viewObj);
+				if (hr < 0 || viewObj == IntPtr.Zero)
+					return null;
+
+				return (IContextMenu)Marshal.GetObjectForIUnknown(viewObj);
+			}
+			finally
+			{
+				if (pidl != IntPtr.Zero) ILFree(pidl);
+				if (folderPtr != IntPtr.Zero) Marshal.Release(folderPtr);
+			}
+		}
+
 		private static IContextMenu? GetContextMenuForPath(string path, IntPtr hwndOwner)
 		{
 			IntPtr pidl = IntPtr.Zero;
@@ -773,6 +939,25 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 		{
 			var hwnd = WindowNative.GetWindowHandle(App.ShellWindow!);
 			var flyout = BuildFlyout(path, hwnd, onNavigate, onOpenInNewTab, onOpenInNewWindow);
+			if (flyout != null)
+			{
+				flyout.ShowAt(anchor, new FlyoutShowOptions { Position = position });
+			}
+			return flyout;
+		}
+
+		/// <summary>
+		/// Shows a background context menu for the folder (empty-space right-click).
+		/// Replaces the Open/Open-in-new-tab/Open-in-new-window items with View/Sort/Refresh.
+		/// </summary>
+		public static MenuFlyout? ShowBackgroundContextMenuAt(string folderPath, FrameworkElement anchor, Point position,
+			Action<string>? onSortColumn = null, Action<bool>? onSortDirection = null, Action? onRefresh = null,
+			string? currentSortColumn = null, bool currentSortAscending = true)
+		{
+			var hwnd = WindowNative.GetWindowHandle(App.ShellWindow!);
+			var flyout = BuildBackgroundFlyout(folderPath, hwnd,
+				onSortColumn, onSortDirection, onRefresh,
+				currentSortColumn, currentSortAscending);
 			if (flyout != null)
 			{
 				flyout.ShowAt(anchor, new FlyoutShowOptions { Position = position });

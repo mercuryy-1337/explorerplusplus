@@ -64,6 +64,9 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		public NavigationState Navigation { get; }
 		public ObservableCollection<FolderPaneItemState> FolderPane { get; }
 		public ObservableCollection<FileItemState> Files { get; }
+		public string CurrentActivationPath => m_currentActivationPath;
+		public string CurrentSortColumn => m_fileSortColumn.ToString();
+		public bool CurrentSortAscending => m_fileSortAscending;
 
 		public ICommand GoBackCommand => m_goBackCommand;
 		public ICommand GoForwardCommand => m_goForwardCommand;
@@ -329,6 +332,14 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				m_fileSortAscending = GetDefaultSortDirection(sortColumn);
 			}
 
+			NotifyFileSortStateChanged();
+			ResortVisibleFiles();
+		}
+
+		public void SetSortDirection(bool ascending)
+		{
+			if (m_fileSortAscending == ascending) return;
+			m_fileSortAscending = ascending;
 			NotifyFileSortStateChanged();
 			ResortVisibleFiles();
 		}
