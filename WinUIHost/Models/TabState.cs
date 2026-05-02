@@ -3,7 +3,6 @@
 // See LICENSE in the top level directory
 
 using ExplorerPlusPlus.WinUIHost.Infrastructure;
-using Microsoft.UI.Xaml;
 using System.Collections.Generic;
 
 namespace ExplorerPlusPlus.WinUIHost.Models
@@ -13,8 +12,6 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		private string m_title = string.Empty;
 		private string m_glyph = "\uE8B7";
 		private string m_activationPath = string.Empty;
-		private bool m_selected;
-		private bool m_showTrailingDivider;
 		private string? m_selectedFolderActivationPath;
 
 		public TabState()
@@ -26,14 +23,7 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		public string Title
 		{
 			get => m_title;
-			set
-			{
-				if (SetProperty(ref m_title, value))
-				{
-					OnPropertyChanged(nameof(TabAutomationName));
-					OnPropertyChanged(nameof(CloseTabAutomationName));
-				}
-			}
+			set => SetProperty(ref m_title, value);
 		}
 
 		public string Glyph
@@ -57,41 +47,5 @@ namespace ExplorerPlusPlus.WinUIHost.Models
 		public List<string> BackHistory { get; }
 
 		public List<string> ForwardHistory { get; }
-
-		public bool Selected
-		{
-			get => m_selected;
-			set
-			{
-				if (SetProperty(ref m_selected, value))
-				{
-					OnPropertyChanged(nameof(CloseButtonVisibility));
-					OnPropertyChanged(nameof(DividerVisibility));
-					OnPropertyChanged(nameof(SelectedBackgroundOpacity));
-				}
-			}
-		}
-
-		public bool ShowTrailingDivider
-		{
-			get => m_showTrailingDivider;
-			set
-			{
-				if (SetProperty(ref m_showTrailingDivider, value))
-				{
-					OnPropertyChanged(nameof(DividerVisibility));
-				}
-			}
-		}
-
-		public double SelectedBackgroundOpacity => Selected ? 1.0 : 0.0;
-
-		public Visibility CloseButtonVisibility => Visibility.Visible;
-
-		public Visibility DividerVisibility => !Selected && ShowTrailingDivider ? Visibility.Visible : Visibility.Collapsed;
-
-		public string TabAutomationName => $"{Title} tab";
-
-		public string CloseTabAutomationName => $"Close {Title} tab";
 	}
 }

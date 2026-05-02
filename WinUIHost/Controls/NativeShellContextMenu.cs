@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the top level directory
 
-using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -327,12 +326,6 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 				{
 					MenuFlyoutPresenterStyle = CreatePresenterStyle()
 				};
-
-				try
-				{
-					flyout.SystemBackdrop = new DesktopAcrylicBackdrop();
-				}
-				catch { }
 
 				PopulateFlyoutItems(flyout.Items, hMenu, contextMenu, idCmdFirst, hwndOwner, path, itemStyle, subItemStyle, onNavigate);
 

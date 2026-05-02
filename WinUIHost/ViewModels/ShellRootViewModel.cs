@@ -143,40 +143,19 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		public bool CloseTab(TabState? tab)
 		{
-			if (tab == null)
-			{
-				return true;
-			}
-
+			if (tab == null) return true;
 			var tabIndex = Tabs.IndexOf(tab);
-
-			if (tabIndex < 0)
-			{
-				return true;
-			}
-
-			if (Tabs.Count == 1)
-			{
-				return false;
-			}
+			if (tabIndex < 0) return true;
+			if (Tabs.Count == 1) return false;
 
 			bool closingSelectedTab = ReferenceEquals(tab, SelectedTab);
-
-			if (closingSelectedTab)
-			{
-				SaveCurrentTabState();
-			}
-
+			if (closingSelectedTab) SaveCurrentTabState();
 			Tabs.RemoveAt(tabIndex);
 
 			if (closingSelectedTab)
 			{
 				var nextTabIndex = Math.Min(tabIndex, Tabs.Count - 1);
 				ActivateTab(Tabs[nextTabIndex], true);
-			}
-			else
-			{
-				UpdateTabDividerState();
 			}
 
 			return true;
@@ -457,7 +436,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				RefreshFoldersPane();
 			}
 
-			RefreshTabs();
+			SaveCurrentTabState();
 			RefreshNavigation();
 			ApplyFolderSelectionState();
 			RefreshFiles();
@@ -479,18 +458,12 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 		private void ActivateTab(TabState? tab, bool refreshFolderPane)
 		{
-			if (tab == null)
-			{
-				return;
-			}
-
+			if (tab == null) return;
 			if (ReferenceEquals(tab, SelectedTab))
 			{
-				RefreshTabs();
 				NotifyCommandStateChanged();
 				return;
 			}
-
 			SaveCurrentTabState();
 			SelectedTab = tab;
 			LoadStateFromTab(tab);
@@ -533,26 +506,6 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			var initialTab = CreateTabState(m_currentActivationPath);
 			Tabs.Add(initialTab);
 			ActivateTab(initialTab, false);
-		}
-
-		private void RefreshTabs()
-		{
-			SaveCurrentTabState();
-
-			foreach (var tab in Tabs)
-			{
-				tab.Selected = ReferenceEquals(tab, SelectedTab);
-			}
-
-			UpdateTabDividerState();
-		}
-
-		private void UpdateTabDividerState()
-		{
-			for (int index = 0; index < Tabs.Count; index++)
-			{
-				Tabs[index].ShowTrailingDivider = index < Tabs.Count - 1;
-			}
 		}
 
 		private void RefreshNavigation()

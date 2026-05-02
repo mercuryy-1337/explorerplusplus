@@ -10,6 +10,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Win32;
@@ -67,6 +68,8 @@ namespace ExplorerPlusPlus.WinUIHost
 				AppendLog("ShellRootViewModel created");
 				RootLayout.DataContext = ViewModel;
 
+				SetupTabView();
+
 				if (!string.IsNullOrWhiteSpace(initialPath))
 				{
 					RootLayout.Loaded += (_, _) => ViewModel.TryNavigateToPath(initialPath);
@@ -100,6 +103,109 @@ namespace ExplorerPlusPlus.WinUIHost
 				view.Tapped += FilesView_Tapped;
 				view.ContainerContentChanging += OnFilesViewContainerContentChanging;
 			}
+		}
+
+		private void SetupTabView()
+		{
+			var tabView = new TabView
+			{
+				IsAddTabButtonVisible = true,
+				VerticalAlignment = VerticalAlignment.Bottom
+			};
+
+			tabView.SetBinding(TabView.TabItemsSourceProperty, new Binding
+			{
+				Path = new PropertyPath(nameof(ViewModel.Tabs)),
+				Source = ViewModel
+			});
+
+			tabView.SelectionChanged += TabView_SelectionChanged;
+			tabView.TabCloseRequested += TabView_TabCloseRequested;
+			tabView.AddTabButtonClick += TabView_AddTabButtonClick;
+
+			ViewModel.PropertyChanged += (_, args) =>
+			{
+				if (args.PropertyName == nameof(ViewModel.SelectedTab)
+					&& !ReferenceEquals(tabView.SelectedItem, ViewModel.SelectedTab))
+				{
+					tabView.SelectedItem = ViewModel.SelectedTab;
+				}
+			};
+
+			ApplyTabViewThemeResources(tabView);
+
+			tabView.TabItemTemplate = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+				"""
+				<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+				              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+				    <TabViewItem Header="{Binding Title}">
+				        <TabViewItem.IconSource>
+				            <FontIconSource Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" />
+				        </TabViewItem.IconSource>
+				    </TabViewItem>
+				</DataTemplate>
+				""");
+
+			TabViewHost.Children.Add(tabView);
+		}
+
+		private static void ApplyTabViewThemeResources(TabView tabView)
+		{
+			tabView.Resources.ThemeDictionaries.Clear();
+
+			foreach (var themeName in new[] { "Default", "Light", "Dark" })
+			{
+				var themeDict = new ResourceDictionary();
+				var selectedBrush = ResolveThemeBrushForTheme("ShellChromeBrush", themeName);
+				var hoverBrush = ResolveThemeBrushForTheme("ShellNavButtonHoverBrush", themeName);
+				var pressedBrush = ResolveThemeBrushForTheme("ShellNavButtonPressedBrush", themeName);
+				var textBrush = ResolveThemeBrushForTheme("ShellTextBrush", themeName);
+				var secondaryTextBrush = ResolveThemeBrushForTheme("ShellSecondaryTextBrush", themeName);
+				var borderBrush = ResolveThemeBrushForTheme("ShellBorderBrush", themeName);
+
+				themeDict["TabViewItemHeaderBackground"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+				themeDict["TabViewItemHeaderBackgroundSelected"] = selectedBrush;
+				themeDict["TabViewItemHeaderBackgroundPointerOver"] = hoverBrush;
+				themeDict["TabViewItemHeaderBackgroundPressed"] = pressedBrush;
+				themeDict["TabViewItemHeaderForeground"] = secondaryTextBrush;
+				themeDict["TabViewItemHeaderForegroundSelected"] = textBrush;
+				themeDict["TabViewItemHeaderIconForeground"] = secondaryTextBrush;
+				themeDict["TabViewItemHeaderIconForegroundSelected"] = secondaryTextBrush;
+				themeDict["TabViewItemHeaderBorderBrush"] = borderBrush;
+				themeDict["TabViewItemHeaderBorderBrushSelected"] = borderBrush;
+				themeDict["TabViewItemHeaderBorderBrushPointerOver"] = borderBrush;
+				themeDict["TabViewItemSeparatorBrush"] = borderBrush;
+				themeDict["TabViewItemHeaderCloseButtonForeground"] = secondaryTextBrush;
+				themeDict["TabViewItemHeaderCloseButtonForegroundPointerOver"] = textBrush;
+				themeDict["TabViewItemHeaderCloseButtonForegroundPressed"] = textBrush;
+				themeDict["TabViewAddButtonForeground"] = textBrush;
+				tabView.Resources.ThemeDictionaries[themeName] = themeDict;
+			}
+		}
+
+		private static Brush ResolveThemeBrushForTheme(string key, string themeName)
+		{
+			var resources = Application.Current?.Resources;
+			if (resources == null) return s_transparentBrush;
+
+			if (resources.ThemeDictionaries.TryGetValue(themeName, out var dictObj)
+				&& dictObj is ResourceDictionary dict
+				&& dict.TryGetValue(key, out var resource)
+				&& resource is Brush brush)
+			{
+				return brush;
+			}
+
+			if (themeName != "Default"
+				&& resources.ThemeDictionaries.TryGetValue("Default", out dictObj)
+				&& dictObj is ResourceDictionary defaultDict
+				&& defaultDict.TryGetValue(key, out var defaultResource)
+				&& defaultResource is Brush defaultBrush)
+			{
+				return defaultBrush;
+			}
+
+			return s_transparentBrush;
 		}
 
 		private void OnFilesViewContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
@@ -139,7 +245,7 @@ namespace ExplorerPlusPlus.WinUIHost
 					{
 						var processPath = Environment.ProcessPath;
 						if (!string.IsNullOrEmpty(processPath))
-							Process.Start(new ProcessStartInfo(processPath, path) { UseShellExecute = true });
+							Process.Start(new ProcessStartInfo(processPath, $"\"{path}\"") { UseShellExecute = true });
 					}
 					catch { }
 				});
@@ -535,157 +641,22 @@ namespace ExplorerPlusPlus.WinUIHost
 			}
 		}
 
-		private void TabActionButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+		private void TabView_SelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
-			if (sender is Button button)
-			{
-				SetNavToolbarButtonBrush(button, "ShellTabActionHoverBrush");
-			}
-		}
-
-		private void TabActionButton_PointerExited(object sender, PointerRoutedEventArgs e)
-		{
-			if (sender is Button button)
-			{
-				ResetNavToolbarButtonBrush(button);
-			}
-		}
-
-		private void TabActionButton_PointerPressed(object sender, PointerRoutedEventArgs e)
-		{
-			if (sender is Button button)
-			{
-				SetNavToolbarButtonBrush(button, "ShellTabActionPressedBrush");
-			}
-		}
-
-		private void TabActionButton_PointerReleased(object sender, PointerRoutedEventArgs e)
-		{
-			if (sender is Button button)
-			{
-				if (button.IsPointerOver)
-				{
-					SetNavToolbarButtonBrush(button, "ShellTabActionHoverBrush");
-				}
-				else
-				{
-					ResetNavToolbarButtonBrush(button);
-				}
-			}
-		}
-
-		private void TabActionButton_PointerCanceled(object sender, PointerRoutedEventArgs e)
-		{
-			if (sender is Button button)
-			{
-				ResetNavToolbarButtonBrush(button);
-			}
-		}
-
-		private void TabActionButton_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
-		{
-			if (sender is Button button)
-			{
-				ResetNavToolbarButtonBrush(button);
-			}
-		}
-
-		private static bool IsSelectedTabButton(Button button)
-		{
-			return button.DataContext is TabState tab && tab.Selected;
-		}
-
-		private void SetTabButtonBrush(Button button, string resourceKey)
-		{
-			if (IsSelectedTabButton(button))
-			{
-				ResetTabButtonBrush(button);
-				return;
-			}
-
-			button.Background = ResolveThemeBrush(resourceKey);
-		}
-
-		private static void ResetTabButtonBrush(Button button)
-		{
-			button.Background = s_transparentBrush;
-		}
-
-		private void TabButton_PointerEntered(object sender, PointerRoutedEventArgs e)
-		{
-			if (sender is Button button)
-			{
-				SetTabButtonBrush(button, "ShellNavButtonHoverBrush");
-			}
-		}
-
-		private void TabButton_PointerExited(object sender, PointerRoutedEventArgs e)
-		{
-			if (sender is Button button)
-			{
-				ResetTabButtonBrush(button);
-			}
-		}
-
-		private void TabButton_PointerPressed(object sender, PointerRoutedEventArgs e)
-		{
-			if (sender is Button button)
-			{
-				SetTabButtonBrush(button, "ShellNavButtonPressedBrush");
-			}
-		}
-
-		private void TabButton_PointerReleased(object sender, PointerRoutedEventArgs e)
-		{
-			if (sender is Button button)
-			{
-				if (button.IsPointerOver)
-				{
-					SetTabButtonBrush(button, "ShellNavButtonHoverBrush");
-				}
-				else
-				{
-					ResetTabButtonBrush(button);
-				}
-			}
-		}
-
-		private void TabButton_PointerCanceled(object sender, PointerRoutedEventArgs e)
-		{
-			if (sender is Button button)
-			{
-				ResetTabButtonBrush(button);
-			}
-		}
-
-		private void TabButton_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
-		{
-			if (sender is Button button)
-			{
-				ResetTabButtonBrush(button);
-			}
-		}
-
-		private void TabButton_Click(object sender, RoutedEventArgs e)
-		{
-			if (sender is FrameworkElement element && element.DataContext is TabState tab)
+			if (sender is TabView tabView && tabView.SelectedItem is TabState tab
+				&& !ReferenceEquals(tab, ViewModel.SelectedTab))
 			{
 				ViewModel.ActivateTab(tab);
 			}
 		}
 
-		private void TabCloseButton_Click(object sender, RoutedEventArgs e)
+		private void TabView_TabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
 		{
-			if (sender is FrameworkElement element && element.DataContext is TabState tab)
-			{
-				if (!ViewModel.CloseTab(tab))
-				{
-					Close();
-				}
-			}
+			if (args.Item is TabState tab && !ViewModel.CloseTab(tab))
+				Close();
 		}
 
-		private void NewTabButton_Click(object sender, RoutedEventArgs e)
+		private void TabView_AddTabButtonClick(TabView sender, object args)
 		{
 			ViewModel.OpenNewTab();
 		}
@@ -971,7 +942,7 @@ namespace ExplorerPlusPlus.WinUIHost
 					{
 						var processPath = Environment.ProcessPath;
 						if (!string.IsNullOrEmpty(processPath))
-							Process.Start(new ProcessStartInfo(processPath, path) { UseShellExecute = true });
+							Process.Start(new ProcessStartInfo(processPath, $"\"{path}\"") { UseShellExecute = true });
 					}
 					catch { }
 				});
