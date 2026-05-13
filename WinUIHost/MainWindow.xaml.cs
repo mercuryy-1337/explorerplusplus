@@ -135,17 +135,7 @@ namespace ExplorerPlusPlus.WinUIHost
 
 			ApplyTabViewThemeResources(tabView);
 
-			tabView.TabItemTemplate = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
-				"""
-				<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-				              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-				    <TabViewItem Header="{Binding Title}">
-				        <TabViewItem.IconSource>
-				            <FontIconSource Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" />
-				        </TabViewItem.IconSource>
-				    </TabViewItem>
-				</DataTemplate>
-				""");
+			tabView.TabItemTemplate = (DataTemplate)RootLayout.Resources["TabItemTemplate"];
 
 			TabViewHost.Children.Add(tabView);
 		}
@@ -960,7 +950,8 @@ namespace ExplorerPlusPlus.WinUIHost
 							Process.Start(new ProcessStartInfo(processPath, $"\"{path}\"") { UseShellExecute = true });
 					}
 					catch { }
-				});
+				},
+				hideCreateShortcut: true);
 			if (flyout != null)
 			{
 				flyout.Closed += (_, _) =>

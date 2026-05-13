@@ -44,6 +44,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		private TabState? m_selectedTab;
 		private FolderPaneItemState? m_selectedFolder;
 		private CancellationTokenSource? m_filesRefreshCancellationSource;
+		private CancellationTokenSource? m_folderPaneIconCancellationSource;
 		private CancellationTokenSource? m_selectedItemsSummaryCancellationSource;
 		private string m_currentActivationPath = HomeActivationPath;
 		private string? m_selectedFolderActivationPath;
@@ -452,6 +453,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			ApplyFolderSelectionState();
 			RefreshFiles();
 			NotifyCommandStateChanged();
+			ScheduleFolderPaneIconPopulation();
 		}
 
 		private TabState CreateTabState(string activationPath)
@@ -549,6 +551,74 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			EnsureFolderPaneVisibleForPath(m_currentActivationPath);
 		}
 
+		private void ScheduleFolderPaneIconPopulation()
+		{
+			m_folderPaneIconCancellationSource?.Cancel();
+			m_folderPaneIconCancellationSource?.Dispose();
+			m_folderPaneIconCancellationSource = new CancellationTokenSource();
+			_ = PopulateFolderPaneIconsAsync(m_folderPaneIconCancellationSource.Token);
+		}
+
+		private async Task PopulateFolderPaneIconsAsync(CancellationToken cancellationToken)
+		{
+			var items = FolderPane
+				.Where(item => !item.IsHeader && item.IconSource == null && IsFileSystemPath(item.ActivationPath))
+				.Select(item => (Item: item, Path: item.ActivationPath))
+				.ToList();
+
+			if (items.Count == 0)
+			{
+				return;
+			}
+
+			List<(FolderPaneItemState Item, string? IconPath)> iconUpdates;
+
+			try
+			{
+				iconUpdates = await Task.Run(() =>
+				{
+					var updates = new List<(FolderPaneItemState, string?)>(items.Count);
+
+					foreach (var entry in items)
+					{
+						if (cancellationToken.IsCancellationRequested)
+						{
+							break;
+						}
+
+						updates.Add((entry.Item, ShellIconCache.GetFolderIconPath(entry.Path)));
+					}
+
+					return updates;
+				}, cancellationToken);
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+
+			if (cancellationToken.IsCancellationRequested)
+			{
+				return;
+			}
+
+			m_dispatcherQueue.TryEnqueue(() =>
+			{
+				if (cancellationToken.IsCancellationRequested)
+				{
+					return;
+				}
+
+				foreach (var update in iconUpdates)
+				{
+					if (!string.IsNullOrWhiteSpace(update.IconPath))
+					{
+						update.Item.IconSource = ShellIconCache.CreateImageSource(update.IconPath);
+					}
+				}
+			});
+		}
+
 		private void ApplyFolderSelectionState()
 		{
 			FolderPaneItemState? selectedItem = null;
@@ -584,16 +654,6 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			var cancellationToken = m_filesRefreshCancellationSource.Token;
 			Files.Clear();
 
-			if (IsHomeLocation(activationPath) || IsThisPcLocation(activationPath))
-			{
-				foreach (var item in CreateSortedFileSequence(BuildFileItemsForLocation(activationPath, includeIcons: true)))
-				{
-					Files.Add(item);
-				}
-
-				return;
-			}
-
 			_ = RefreshFilesAsync(activationPath, cancellationToken);
 		}
 
@@ -625,13 +685,14 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 				}
 
 				var sortedItems = CreateSortedFileSequence(items).ToList();
-				var genericFolderIcon = ShellIconCache.GetGenericFolderIcon();
+				var useFolderPlaceholder = !IsHomeLocation(activationPath) && !IsThisPcLocation(activationPath);
+				var genericFolderIcon = useFolderPlaceholder ? ShellIconCache.GetGenericFolderIcon() : null;
 
 				Files.Clear();
 
 				foreach (var item in sortedItems)
 				{
-					if (item.IsFolder && item.IconSource == null)
+					if (useFolderPlaceholder && item.IsFolder && item.IconSource == null)
 					{
 						item.IconSource = genericFolderIcon;
 					}
@@ -646,6 +707,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 		private async Task PopulateFileIconsAsync(string activationPath, IReadOnlyList<FileItemState> items,
 			CancellationToken cancellationToken)
 		{
+			var useDriveIcons = IsThisPcLocation(activationPath);
 			List<(FileItemState Item, string? IconPath)> iconUpdates;
 
 			try
@@ -661,8 +723,15 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 							break;
 						}
 
+						if (!IsFileSystemPath(item.ActivationPath))
+						{
+							continue;
+						}
+
 						string? iconPath = item.IsFolder
-							? ShellIconCache.GetFolderIconPath(item.ActivationPath)
+							? (useDriveIcons
+								? ShellIconCache.GetDriveIconPath(item.ActivationPath)
+								: ShellIconCache.GetFolderIconPath(item.ActivationPath))
 							: ShellIconCache.GetFileIconPath(item.ActivationPath);
 
 						updates.Add((item, iconPath));
@@ -1068,10 +1137,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 						Title = pinnedLocation.Title,
 						Glyph = pinnedLocation.Glyph,
 						ActivationPath = pinnedLocation.ActivationPath,
-						IconSource = IsFileSystemPath(pinnedLocation.ActivationPath)
-							? ShellIconCache.GetFolderIcon(pinnedLocation.ActivationPath)
-							: null,
-						CanExpand = IsQuickAccessFolderExpandable(pinnedLocation.ActivationPath),
+						CanExpand = IsFileSystemPath(pinnedLocation.ActivationPath),
 						IsExpanded = false,
 						Depth = 0
 					});
@@ -1189,12 +1255,6 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			}
 		}
 
-		private bool IsQuickAccessFolderExpandable(string activationPath)
-		{
-			return IsFileSystemPath(activationPath)
-				&& (HasChildDirectories(activationPath) || IsFileSystemBranch(m_currentActivationPath, activationPath));
-		}
-
 		private FolderPaneItemState? FindFolderPaneItem(string activationPath)
 		{
 			return FolderPane.FirstOrDefault(item => !item.IsHeader && PathsEqual(item.ActivationPath, activationPath));
@@ -1227,6 +1287,7 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 
 			folder.IsExpanded = true;
 			m_expandedPaths.Add(folder.ActivationPath);
+			ScheduleFolderPaneIconPopulation();
 		}
 
 		private void CollapseFolderInPane(FolderPaneItemState folder)
@@ -1263,7 +1324,6 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 						Title = BuildDriveTitle(drive),
 						Glyph = "\uEDA2",
 						ActivationPath = NormalizeFileSystemPath(drive.RootDirectory.FullName),
-						IconSource = ShellIconCache.GetDriveIcon(drive.RootDirectory.FullName),
 						CanExpand = true,
 						IsExpanded = false,
 						Depth = parent.Depth + 1
@@ -1285,7 +1345,6 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 					Title = GetFileSystemDisplayName(childDirectory),
 					Glyph = "\uE8B7",
 					ActivationPath = NormalizeFileSystemPath(childDirectory),
-					IconSource = ShellIconCache.GetFolderIcon(childDirectory),
 					CanExpand = true,
 					IsExpanded = false,
 					Depth = parent.Depth + 1
@@ -1398,17 +1457,6 @@ namespace ExplorerPlusPlus.WinUIHost.ViewModels
 			}
 		}
 
-		private static bool HasChildDirectories(string directoryPath)
-		{
-			try
-			{
-				return Directory.EnumerateDirectories(directoryPath).Any();
-			}
-			catch
-			{
-				return false;
-			}
-		}
 
 		private static DateTimeOffset? GetDirectoryWriteTime(string directoryPath)
 		{

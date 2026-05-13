@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(dotnet build WinUIHost\\\\ExplorerPlusPlus.WinUIHost.csproj -c Release -p:Platform=x64 2>&1)"
+    ]
+  }
+}

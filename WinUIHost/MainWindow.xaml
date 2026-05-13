@@ -11,6 +11,15 @@
     xmlns:models="using:ExplorerPlusPlus.WinUIHost.Models"
     Title="ExplorerX">
     <Grid x:Name="RootLayout" Background="Transparent">
+        <Grid.Resources>
+            <DataTemplate x:Key="TabItemTemplate">
+                <TabViewItem Header="{Binding Title}">
+                    <TabViewItem.IconSource>
+                        <FontIconSource Glyph="{Binding Glyph}" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                    </TabViewItem.IconSource>
+                </TabViewItem>
+            </DataTemplate>
+        </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />

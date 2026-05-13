@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -304,7 +305,8 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 		public static MenuFlyout? BuildFlyout(string path, IntPtr hwndOwner,
 			Action<string>? onNavigate = null,
 			Action<string>? onOpenInNewTab = null,
-			Action<string>? onOpenInNewWindow = null)
+			Action<string>? onOpenInNewWindow = null,
+			bool hideCreateShortcut = false)
 		{
 			var contextMenu = GetContextMenuForPath(path, hwndOwner);
 			if (contextMenu == null)
@@ -330,7 +332,7 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 					MenuFlyoutPresenterStyle = CreatePresenterStyle()
 				};
 
-				PopulateFlyoutItems(flyout.Items, hMenu, contextMenu, idCmdFirst, hwndOwner, path, itemStyle, subItemStyle, onNavigate);
+				PopulateFlyoutItems(flyout.Items, hMenu, contextMenu, idCmdFirst, hwndOwner, path, itemStyle, subItemStyle, onNavigate, hideCreateShortcut: hideCreateShortcut);
 
 				RemoveTrailingSeparators(flyout.Items);
 				RemoveDuplicateSeparators(flyout.Items);
@@ -384,7 +386,7 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 				// Insert our custom items before shell items
 				InsertBackgroundOptions(flyout.Items, itemStyle, subItemStyle,
 					onSortColumn, onSortDirection, onRefresh,
-					currentSortColumn, currentSortAscending);
+					currentSortColumn, currentSortAscending, folderPath);
 				flyout.Items.Add(new MenuFlyoutSeparator { Margin = s_separatorMargin });
 
 				PopulateFlyoutItems(flyout.Items, hMenu, contextMenu, idCmdFirst, hwndOwner, folderPath, itemStyle, subItemStyle);
@@ -405,8 +407,12 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 
 		private static void InsertBackgroundOptions(IList<MenuFlyoutItemBase> items, Style itemStyle, Style subItemStyle,
 			Action<string>? onSortColumn, Action<bool>? onSortDirection, Action? onRefresh,
-			string? currentSortColumn, bool currentSortAscending)
+			string? currentSortColumn, bool currentSortAscending, string? folderPath = null)
 		{
+			var newSub = BuildNewSubMenu(itemStyle, subItemStyle, folderPath);
+			if (newSub != null)
+				items.Add(newSub);
+
 			var viewSub = new MenuFlyoutSubItem { Text = "View", Style = subItemStyle };
 			viewSub.IsEnabled = false;
 			viewSub.AllowFocusOnInteraction = false;
@@ -458,6 +464,284 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 			}
 		}
 
+		private static MenuFlyoutSubItem? BuildNewSubMenu(Style itemStyle, Style subItemStyle, string? folderPath)
+		{
+			var newSub = new MenuFlyoutSubItem { Text = "New", Style = subItemStyle };
+			newSub.AllowFocusOnInteraction = false;
+			newSub.IsTapEnabled = false;
+			ApplyItemResources(newSub, includeSubMenuStateResources: true);
+
+			var shellNewItems = GetShellNewItems();
+			if (shellNewItems.Count == 0)
+				return null;
+
+			foreach (var shellNewItem in shellNewItems)
+			{
+				var item = new MenuFlyoutItem { Text = shellNewItem.DisplayName, Style = itemStyle };
+				ApplyItemResources(item, includeSubMenuStateResources: false);
+
+				if (!string.IsNullOrEmpty(folderPath))
+				{
+					var capturedPath = folderPath;
+					var capturedExtension = shellNewItem.Extension;
+					var capturedTemplateName = shellNewItem.TemplateName;
+					var capturedNullFile = shellNewItem.NullFile;
+					var capturedIconPath = shellNewItem.IconPath;
+
+					item.Click += (_, _) => CreateShellNewItem(capturedPath, capturedExtension, capturedTemplateName, capturedNullFile, capturedIconPath);
+				}
+
+				if (!string.IsNullOrEmpty(shellNewItem.IconPath))
+				{
+					var icon = TryLoadIconFromFile(shellNewItem.IconPath);
+					if (icon != null)
+						item.Icon = icon;
+				}
+
+				newSub.Items.Add(item);
+			}
+
+			return newSub.Items.Count > 0 ? newSub : null;
+		}
+
+		private sealed class ShellNewItem
+		{
+			public string DisplayName { get; set; } = "";
+			public string Extension { get; set; } = "";
+			public string? TemplateName { get; set; }
+			public bool NullFile { get; set; }
+			public string? IconPath { get; set; }
+		}
+
+		private static List<ShellNewItem> GetShellNewItems()
+		{
+			var items = new List<ShellNewItem>();
+			var seenExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+			try
+			{
+				using var hkcr = Registry.ClassesRoot;
+				var subKeys = hkcr.GetSubKeyNames();
+
+				foreach (var keyName in subKeys)
+				{
+					if (!keyName.StartsWith(".", StringComparison.Ordinal) && !keyName.Contains("\\"))
+						continue;
+
+					try
+					{
+						using var shellNewKey = hkcr.OpenSubKey($"{keyName}\\ShellNew");
+						if (shellNewKey == null)
+							continue;
+
+						if (keyName.StartsWith(".", StringComparison.Ordinal) && seenExtensions.Contains(keyName))
+							continue;
+
+						var displayName = GetExtensionDisplayName(hkcr, keyName);
+						var extension = keyName.StartsWith(".", StringComparison.Ordinal) ? keyName : "";
+						var templateName = shellNewKey.GetValue("FileName") as string;
+						var nullFile = shellNewKey.GetValue("NullFile") != null;
+						var data = shellNewKey.GetValue("Data") as string;
+						var command = shellNewKey.GetValue("Command") as string;
+						var iconPath = shellNewKey.GetValue("IconPath") as string;
+
+						if (string.IsNullOrEmpty(extension) && !nullFile && string.IsNullOrEmpty(templateName))
+							continue;
+
+						seenExtensions.Add(keyName);
+
+						items.Add(new ShellNewItem
+						{
+							DisplayName = displayName,
+							Extension = extension,
+							TemplateName = templateName,
+							NullFile = nullFile,
+							IconPath = iconPath
+						});
+					}
+					catch { }
+				}
+			}
+			catch { }
+
+			if (items.Count == 0)
+			{
+				items.Add(new ShellNewItem { DisplayName = "Folder", Extension = ".folder", NullFile = false });
+				items.Add(new ShellNewItem { DisplayName = "Text Document", Extension = ".txt", NullFile = true });
+			}
+
+			return items;
+		}
+
+		private static string GetExtensionDisplayName(RegistryKey hkcr, string extension)
+		{
+			try
+			{
+				using var extKey = hkcr.OpenSubKey(extension);
+				if (extKey != null)
+				{
+					var progId = extKey.GetValue(null) as string;
+					if (!string.IsNullOrEmpty(progId))
+					{
+						using var progKey = hkcr.OpenSubKey(progId);
+						if (progKey != null)
+						{
+							var name = progKey.GetValue(null) as string;
+							if (!string.IsNullOrEmpty(name))
+								return name;
+
+							var localized = progKey.GetValue("LocalizedString") as string;
+							if (!string.IsNullOrEmpty(localized))
+								return ResolveLocalizedString(localized);
+						}
+					}
+
+					var localizedExt = extKey.GetValue("LocalizedString") as string;
+					if (!string.IsNullOrEmpty(localizedExt))
+						return ResolveLocalizedString(localizedExt);
+				}
+			}
+			catch { }
+
+			return extension.TrimStart('.').ToUpperInvariant() + " File";
+		}
+
+		private static string ResolveLocalizedString(string localizedString)
+		{
+			if (localizedString.StartsWith("@", StringComparison.Ordinal) && localizedString.Contains(","))
+			{
+				var parts = localizedString.Split(',');
+				if (parts.Length >= 2 && int.TryParse(parts[1], out int resId))
+				{
+					try
+					{
+						var modulePath = parts[0].TrimStart('@');
+						if (File.Exists(modulePath))
+						{
+							var sb = new StringBuilder(256);
+							if (LoadString(IntPtr.Zero, (uint)resId, sb, sb.Capacity) > 0)
+								return sb.ToString();
+						}
+					}
+					catch { }
+				}
+			}
+			return localizedString;
+		}
+
+		private static void CreateShellNewItem(string folderPath, string extension, string? templateName, bool nullFile, string? iconPath)
+		{
+			try
+			{
+				if (extension == ".folder" || string.IsNullOrEmpty(extension))
+				{
+					string newFolderPath = Path.Combine(folderPath, "New folder");
+					newFolderPath = GetUniquePath(newFolderPath);
+					Directory.CreateDirectory(newFolderPath);
+					return;
+				}
+
+				string fileName;
+				if (extension == ".lnk")
+				{
+					fileName = "New shortcut.lnk";
+				}
+				else if (extension == ".txt")
+				{
+					fileName = "New Text Document.txt";
+				}
+				else
+				{
+					var baseName = extension.TrimStart('.').ToUpperInvariant() + " File";
+					fileName = "New " + baseName + extension;
+				}
+
+				fileName = GetUniqueFileName(folderPath, fileName);
+				string fullPath = Path.Combine(folderPath, fileName);
+
+				if (!string.IsNullOrEmpty(templateName))
+				{
+					using var hkcr = Registry.ClassesRoot;
+					using var templateKey = hkcr.OpenSubKey($"ShellNew\\{templateName}");
+					if (templateKey != null)
+					{
+						var templatePath = templateKey.GetValue(null) as string;
+						if (!string.IsNullOrEmpty(templatePath) && File.Exists(templatePath))
+						{
+							File.Copy(templatePath, fullPath);
+							return;
+						}
+					}
+				}
+
+				if (nullFile)
+				{
+					File.WriteAllText(fullPath, "");
+				}
+			}
+			catch { }
+		}
+
+		private static string GetUniquePath(string path)
+		{
+			if (!Directory.Exists(path) && !File.Exists(path))
+				return path;
+
+			string parent = Path.GetDirectoryName(path) ?? "";
+			string name = Path.GetFileName(path);
+			int counter = 2;
+
+			while (Directory.Exists(path) || File.Exists(path))
+			{
+				path = Path.Combine(parent, $"{name} ({counter})");
+				counter++;
+			}
+
+			return path;
+		}
+
+		private static string GetUniqueFileName(string folderPath, string fileName)
+		{
+			string fullPath = Path.Combine(folderPath, fileName);
+			if (!File.Exists(fullPath) && !Directory.Exists(fullPath))
+				return fileName;
+
+			string nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+			string ext = Path.GetExtension(fileName);
+			int counter = 2;
+
+			while (File.Exists(fullPath) || Directory.Exists(fullPath))
+			{
+				fileName = $"{nameWithoutExt} ({counter}){ext}";
+				fullPath = Path.Combine(folderPath, fileName);
+				counter++;
+			}
+
+			return fileName;
+		}
+
+		private static BitmapIcon? TryLoadIconFromFile(string iconPath)
+		{
+			try
+			{
+				if (string.IsNullOrEmpty(iconPath) || !File.Exists(iconPath))
+					return null;
+
+				return new BitmapIcon
+				{
+					UriSource = new Uri(iconPath),
+					ShowAsMonochrome = false
+				};
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		[DllImport("user32.dll", CharSet = CharSet.Unicode)]
+		private static extern int LoadString(IntPtr hInstance, uint uID, StringBuilder lpBuffer, int nBufferMax);
+
 		private static MenuFlyoutItem CreateBackgroundMenuFlyoutItem(string text, Style itemStyle, Action action,
 			bool isChecked = false)
 		{
@@ -481,7 +765,7 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 
 		private static void PopulateFlyoutItems(IList<MenuFlyoutItemBase> items, IntPtr hMenu, IContextMenu contextMenu,
 			uint idCmdFirst, IntPtr hwndOwner, string? directory, Style itemStyle, Style subItemStyle,
-			Action<string>? onNavigate = null, int depth = 0)
+			Action<string>? onNavigate = null, int depth = 0, bool hideCreateShortcut = false)
 		{
 			int count = GetMenuItemCount(hMenu);
 			for (int i = 0; i < count; i++)
@@ -508,20 +792,25 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 				{
 					if (depth >= 2)
 					{
-						PopulateFlyoutItems(items, mii.hSubMenu, contextMenu, idCmdFirst, hwndOwner, directory, itemStyle, subItemStyle, onNavigate, depth + 1);
+						PopulateFlyoutItems(items, mii.hSubMenu, contextMenu, idCmdFirst, hwndOwner, directory, itemStyle, subItemStyle, onNavigate, depth + 1, hideCreateShortcut);
 						continue;
 					}
 
+					var subItemText = GetMenuItemText(hMenu, i, mii, contextMenu, idCmdFirst);
+
+					if (hideCreateShortcut && IsCreateShortcutText(subItemText))
+						continue;
+
 					var subItem = new MenuFlyoutSubItem
 					{
-						Text = GetMenuItemText(hMenu, i, mii, contextMenu, idCmdFirst),
+						Text = subItemText,
 						Style = subItemStyle
 					};
 					subItem.AllowFocusOnInteraction = false;
 					subItem.IsTapEnabled = false;
 					ApplyItemResources(subItem, includeSubMenuStateResources: true);
 
-					PopulateFlyoutItems(subItem.Items, mii.hSubMenu, contextMenu, idCmdFirst, hwndOwner, directory, itemStyle, subItemStyle, onNavigate, depth + 1);
+					PopulateFlyoutItems(subItem.Items, mii.hSubMenu, contextMenu, idCmdFirst, hwndOwner, directory, itemStyle, subItemStyle, onNavigate, depth + 1, hideCreateShortcut);
 					RemoveTrailingSeparators(subItem.Items);
 					RemoveDuplicateSeparators(subItem.Items);
 
@@ -533,6 +822,9 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 
 				string text = GetMenuItemText(hMenu, i, mii, contextMenu, idCmdFirst);
 				if (string.IsNullOrEmpty(text))
+					continue;
+
+				if (hideCreateShortcut && IsCreateShortcutText(text))
 					continue;
 
 				var item = new MenuFlyoutItem
@@ -584,6 +876,12 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 
 				items.Add(item);
 			}
+		}
+
+		private static bool IsCreateShortcutText(string text)
+		{
+			var lower = text.ToLowerInvariant();
+			return lower.Contains("create shortcut") || lower.Contains("create link");
 		}
 
 		private static string GetMenuItemText(IntPtr hMenu, int position, MENUITEMINFO mii, IContextMenu contextMenu, uint idCmdFirst)
@@ -935,10 +1233,11 @@ namespace ExplorerPlusPlus.WinUIHost.Controls
 		public static MenuFlyout? ShowContextMenuAt(string path, FrameworkElement anchor, Point position,
 			Action<string>? onNavigate = null,
 			Action<string>? onOpenInNewTab = null,
-			Action<string>? onOpenInNewWindow = null)
+			Action<string>? onOpenInNewWindow = null,
+			bool hideCreateShortcut = false)
 		{
 			var hwnd = WindowNative.GetWindowHandle(App.ShellWindow!);
-			var flyout = BuildFlyout(path, hwnd, onNavigate, onOpenInNewTab, onOpenInNewWindow);
+			var flyout = BuildFlyout(path, hwnd, onNavigate, onOpenInNewTab, onOpenInNewWindow, hideCreateShortcut);
 			if (flyout != null)
 			{
 				flyout.ShowAt(anchor, new FlyoutShowOptions { Position = position });
